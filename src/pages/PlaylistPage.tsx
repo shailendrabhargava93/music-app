@@ -22,6 +22,7 @@ interface PlaylistPageProps {
   playlistImage: string;
   onBack: () => void;
   onSongSelect: (song: any) => void;
+  type?: 'playlist' | 'album';
 }
 
 const PlaylistPage: React.FC<PlaylistPageProps> = ({
@@ -30,6 +31,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
   playlistImage,
   onBack,
   onSongSelect,
+  type = 'playlist',
 }) => {
   const [songs, setSongs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,9 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
         setLoading(true);
         setError(false);
         
-        const response = await saavnApi.getPlaylistById(playlistId);
+        const response = type === 'album' 
+          ? await saavnApi.getAlbumById(playlistId)
+          : await saavnApi.getPlaylistById(playlistId);
         
         if (response.success && response.data) {
           const playlistSongs = response.data.songs || [];
@@ -74,7 +78,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
     };
 
     fetchPlaylist();
-  }, [playlistId]);
+  }, [playlistId, type]);
 
   const getHighQualityImage = (images: Array<{ quality: string; url: string }>) => {
     if (!images || images.length === 0) return '';
@@ -256,7 +260,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
                   borderRadius: 1,
                   px: 1,
                   py: 1.5,
-                  mb: 1,
+                  mb: 0.5,
                   '&:hover': {
                     bgcolor: (theme) =>
                       theme.palette.mode === 'light'

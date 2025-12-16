@@ -115,4 +115,57 @@ export const saavnApi = {
       throw error;
     }
   },
+
+  getAlbumById: async (albumId: string): Promise<any> => {
+    try {
+      const response = await fetch(`${BASE_URL}/albums?id=${albumId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch album');
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching album:', error);
+      throw error;
+    }
+  },
+
+  searchAlbums: async (query: string, limit: number = 10): Promise<any> => {
+    try {
+      const response = await fetch(`${BASE_URL}/search/albums?query=${encodeURIComponent(query)}&page=0&limit=${limit}`);
+      if (!response.ok) {
+        throw new Error('Albums search failed');
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error searching albums:', error);
+      throw error;
+    }
+  },
+
+  getSongSuggestions: async (songId: string, limit: number = 5): Promise<any> => {
+    try {
+      // Make sure songId doesn't have any encoding issues
+      const cleanSongId = encodeURIComponent(songId.trim());
+      const url = `${BASE_URL}/songs/${cleanSongId}/suggestions?limit=${limit}`;
+      console.log('Fetching suggestions from:', url);
+      console.log('Song ID:', songId);
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', response.status, errorText);
+        throw new Error(`Failed to fetch song suggestions: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Suggestions response:', data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching song suggestions:', error);
+      throw error;
+    }
+  },
 };

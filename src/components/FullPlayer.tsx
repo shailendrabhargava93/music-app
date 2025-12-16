@@ -24,6 +24,10 @@ import PauseIcon from '@mui/icons-material/Pause';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import CloseIcon from '@mui/icons-material/Close';
+import QueueMusicIcon from '@mui/icons-material/QueueMusic';
+import UpNextDrawer from './UpNextDrawer';
+import { saavnApi } from '../services/saavnApi';
+import { Song } from '../types/api';
 
 interface FullPlayerProps {
   open: boolean;
@@ -38,7 +42,9 @@ interface FullPlayerProps {
   onTogglePlay?: () => void;
   onNextSong?: () => void;
   onPreviousSong?: () => void;
+  onSongSelect?: (song: Song) => void;
   // Song details for info popup
+  albumId?: string;
   albumName?: string;
   label?: string;
   copyright?: string;
@@ -59,6 +65,8 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
   onTogglePlay,
   onNextSong,
   onPreviousSong,
+  onSongSelect,
+  albumId,
   albumName,
   label,
   copyright,
@@ -71,6 +79,9 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [upNextOpen, setUpNextOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<Song[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const totalDuration = duration;
 
   // Decode HTML entities in strings
@@ -95,6 +106,44 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
       }
     }
   }, [songId, songTitle]);
+
+  // Fetch album songs when song changes (for Up Next)
+  useEffect(() => {
+    const fetchAlbumSongs = async () => {
+      if (!albumId) {
+        setSuggestions([]);
+        return;
+      }
+      
+      try {
+        setSuggestionsLoading(true);
+        console.log('Fetching album songs for album ID:', albumId);
+        const response = await saavnApi.getAlbumById(albumId);
+        console.log('Album response:', response);
+        
+        if (response.success && response.data && response.data.songs) {
+          const albumSongs = response.data.songs;
+          // Filter out current song and take up to 5 songs
+          const otherSongs = albumSongs
+            .filter((song: any) => song && song.id && song.id !== songId)
+            .slice(0, 5);
+          
+          console.log('Album songs for Up Next:', otherSongs);
+          setSuggestions(otherSongs);
+        } else {
+          console.log('No album songs found in response');
+          setSuggestions([]);
+        }
+      } catch (error) {
+        console.error('Error fetching album songs:', albumId, error);
+        setSuggestions([]);
+      } finally {
+        setSuggestionsLoading(false);
+      }
+    };
+
+    fetchAlbumSongs();
+  }, [albumId, songId]);
 
   // Toggle favourite status
   const toggleFavorite = () => {
@@ -416,7 +465,52 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
             <SkipNextIcon sx={{ fontSize: 40 }} />
           </IconButton>
         </Box>
+
+        {/* Up Next Button */}
+        <Box
+          onClick={() => setUpNextOpen(true)}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+            mt: 3,
+            py: 1.5,
+            px: 3,
+            borderRadius: 2,
+            cursor: 'pointer',
+            bgcolor: (theme) =>
+              theme.palette.mode === 'light'
+                ? 'rgba(0, 188, 212, 0.08)'
+                : 'rgba(255, 255, 255, 0.05)',
+            transition: 'all 0.2s',
+            '&:hover': {
+              bgcolor: (theme) =>
+                theme.palette.mode === 'light'
+                  ? 'rgba(0, 188, 212, 0.15)'
+                  : 'rgba(255, 255, 255, 0.1)',
+            },
+          }}
+        >
+          <QueueMusicIcon sx={{ color: 'primary.main' }} />
+          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+            Up Next
+          </Typography>
+        </Box>
       </Box>
+
+      {/* Up Next Drawer */}
+      <UpNextDrawer
+        open={upNextOpen}
+        onClose={() => setUpNextOpen(false)}
+        suggestions={suggestions}
+        loading={suggestionsLoading}
+        onSongSelect={(song) => {
+          if (onSongSelect) {
+            onSongSelect(song);
+          }
+        }}
+      />
 
       {/* Song Info Dialog */}
       <Dialog

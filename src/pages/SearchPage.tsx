@@ -358,7 +358,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect 
                     borderRadius: 1,
                     px: 1,
                     py: 1.5,
-                    mb: 1,
+                    mb: 0.5,
                     '&:hover': {
                       bgcolor: 'action.hover',
                     },
@@ -433,7 +433,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect 
                     borderRadius: 1,
                     px: 1,
                     py: 1.5,
-                    mb: 1,
+                    mb: 0.5,
                     '&:hover': {
                       bgcolor: 'action.hover',
                     },

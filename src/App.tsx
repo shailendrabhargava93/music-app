@@ -10,6 +10,7 @@ import SettingsPage from './pages/SettingsPage';
 import WelcomeScreen from './pages/WelcomeScreen';
 import PlaylistPage from './pages/PlaylistPage';
 import FavouritesPage from './pages/FavouritesPage';
+import AllSongsPage from './pages/AllSongsPage';
 import { Song, CurrentSong } from './types/api';
 import { saavnApi } from './services/saavnApi';
 import { soundChartsApi, SoundChartsItem } from './services/soundChartsApi';
@@ -43,7 +44,11 @@ function App() {
     id: string;
     name: string;
     image: string;
+    type?: 'playlist' | 'album';
   } | null>(null);
+  
+  // View All Chart Songs state
+  const [showAllCharts, setShowAllCharts] = useState(false);
   
   // Global state for chart songs - persists across tab switches
   const [chartSongs, setChartSongs] = useState<ChartSongWithSaavn[]>([]);
@@ -294,6 +299,7 @@ function App() {
         albumArt: imageUrl,
         duration: songDetails.duration,
         downloadUrl: audioUrl,
+        albumId: songDetails.album?.id || '',
         albumName: songDetails.album?.name || 'Unknown Album',
         label: songDetails.label || 'Unknown Label',
         copyright: songDetails.copyright || 'Copyright information not available',
@@ -348,12 +354,29 @@ function App() {
   };
 
   const handlePlaylistSelect = (playlistId: string, playlistName: string, playlistImage: string) => {
-    setSelectedPlaylist({ id: playlistId, name: playlistName, image: playlistImage });
+    setSelectedPlaylist({ id: playlistId, name: playlistName, image: playlistImage, type: 'playlist' });
+  };
+
+  const handleAlbumSelect = (albumId: string, albumName: string, albumImage: string) => {
+    setSelectedPlaylist({ id: albumId, name: albumName, image: albumImage, type: 'album' });
   };
 
   const handleBackFromPlaylist = () => {
     setSelectedPlaylist(null);
-    setActiveTab('search'); // Return to search tab
+    // Return to appropriate tab based on playlist type
+    if (selectedPlaylist?.type === 'album') {
+      setActiveTab('home');
+    } else {
+      setActiveTab('search');
+    }
+  };
+
+  const handleViewAllCharts = () => {
+    setShowAllCharts(true);
+  };
+
+  const handleBackFromAllCharts = () => {
+    setShowAllCharts(false);
   };
 
   const handleFavouriteSongSelect = async (songId: string) => {
@@ -397,8 +420,19 @@ function App() {
   };
 
   const renderContent = () => {
-    // Show playlist page if a playlist is selected (only if on search tab)
-    if (selectedPlaylist && activeTab === 'search') {
+    // Show all chart songs page if activated
+    if (showAllCharts) {
+      return (
+        <AllSongsPage
+          chartSongs={chartSongs}
+          onSongSelect={handleSongSelect}
+          onBack={handleBackFromAllCharts}
+        />
+      );
+    }
+
+    // Show playlist/album page if selected
+    if (selectedPlaylist) {
       return (
         <PlaylistPage
           playlistId={selectedPlaylist.id}
@@ -406,6 +440,7 @@ function App() {
           playlistImage={selectedPlaylist.image}
           onBack={handleBackFromPlaylist}
           onSongSelect={handleSongSelect}
+          type={selectedPlaylist.type}
         />
       );
     }
@@ -417,6 +452,8 @@ function App() {
             onSongSelect={handleSongSelect} 
             chartSongs={chartSongs}
             chartSongsLoading={chartSongsLoading}
+            onViewAllCharts={handleViewAllCharts}
+            onAlbumSelect={handleAlbumSelect}
           />
         );
       case 'search':
@@ -490,7 +527,9 @@ function App() {
                 onTogglePlay={() => setIsPlaying(!isPlaying)}
                 onNextSong={handleNextSong}
                 onPreviousSong={handlePreviousSong}
+                onSongSelect={handleSongSelect}
                 // Song details for info popup
+                albumId={currentSong.albumId}
                 albumName={currentSong.albumName}
                 label={currentSong.label}
                 copyright={currentSong.copyright}

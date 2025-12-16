@@ -1,13 +1,17 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Box, Typography, CircularProgress } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, Typography, CircularProgress, Avatar } from '@mui/material';
 import Header from '../components/Header';
 import { Song } from '../types/api';
 import { SoundChartsItem } from '../services/soundChartsApi';
+import { saavnApi } from '../services/saavnApi';
+import AlbumIcon from '@mui/icons-material/Album';
 
 interface HomePageProps {
   onSongSelect: (song: Song) => void;
   chartSongs: ChartSongWithSaavn[];
   chartSongsLoading: boolean;
+  onViewAllCharts: () => void;
+  onAlbumSelect: (albumId: string, albumName: string, albumImage: string) => void;
 }
 
 interface ChartSongWithSaavn extends SoundChartsItem {
@@ -15,52 +19,40 @@ interface ChartSongWithSaavn extends SoundChartsItem {
   isSearching?: boolean;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSongsLoading }) => {
+const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSongsLoading, onViewAllCharts, onAlbumSelect }) => {
   const [displayedSongs, setDisplayedSongs] = useState<ChartSongWithSaavn[]>([]);
-  const [displayCount, setDisplayCount] = useState(10);
-  const observerTarget = useRef<HTMLDivElement>(null);
+  const [latestAlbums, setLatestAlbums] = useState<any[]>([]);
+  const [albumsLoading, setAlbumsLoading] = useState(true);
+  const [albumsFetched, setAlbumsFetched] = useState(false);
 
-  // Update displayed songs when chartSongs or displayCount changes
+  // Fetch latest albums only once
   useEffect(() => {
-    if (chartSongs.length > 0) {
-      setDisplayedSongs(chartSongs.slice(0, displayCount));
-    }
-  }, [chartSongs, displayCount]);
-
-  // Intersection Observer for infinite scroll
-  useEffect(() => {
-    if (displayCount >= chartSongs.length) {
-      return; // Don't observe if all songs are displayed
-    }
-
-    const observer = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            const newCount = Math.min(displayCount + 10, chartSongs.length);
-            if (newCount > displayCount) {
-              setDisplayCount(newCount);
-            }
-          }
-        });
-      },
-      { 
-        threshold: 0,
-        rootMargin: '200px'
-      }
-    );
-
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
+    const fetchLatestAlbums = async () => {
+      if (albumsFetched) return; // Skip if already fetched
+      
+      try {
+        setAlbumsLoading(true);
+        const response = await saavnApi.searchAlbums('latest', 10);
+        if (response?.data?.results) {
+          setLatestAlbums(response.data.results.slice(0, 10));
+          setAlbumsFetched(true); // Mark as fetched
+        }
+      } catch (error) {
+        // Error fetching albums
+      } finally {
+        setAlbumsLoading(false);
       }
     };
-  }, [displayCount, chartSongs.length]);
+
+    fetchLatestAlbums();
+  }, [albumsFetched]);
+
+  // Update displayed songs - show only first 10 on home page
+  useEffect(() => {
+    if (chartSongs.length > 0) {
+      setDisplayedSongs(chartSongs.slice(0, 10));
+    }
+  }, [chartSongs]);
 
   const handleSongClick = (song: ChartSongWithSaavn) => {
     if (song.saavnData) {
@@ -86,14 +78,123 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
     return firstImg?.url || firstImg?.link || '';
   };
 
+  const getHighQualityImage = (images: Array<{ quality: string; url: string }>) => {
+    if (!images || images.length === 0) return '';
+    const qualities = ['500x500', '150x150', '50x50'];
+    for (const quality of qualities) {
+      const img = images.find(img => img.quality === quality);
+      if (img?.url) return img.url;
+    }
+    return images[images.length - 1]?.url || '';
+  };
+
   return (
     <Box sx={{ pb: 16 }}>
       <Header />
       
       <Box sx={{ px: 2, pt: 2 }}>
-        <Typography variant="h6" sx={{ color: 'text.secondary', mb: 3, fontWeight: 500 }}>
-          Trending now • Spotify Charts
-        </Typography>
+        {/* Latest Albums Section */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" sx={{ color: 'text.secondary', mb: 2, fontWeight: 500 }}>
+            Latest Albums
+          </Typography>
+
+          {albumsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+              <CircularProgress size={32} sx={{ color: 'primary.main' }} />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 2,
+                overflowX: 'auto',
+                pb: 2,
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                '&::-webkit-scrollbar': {
+                  display: 'none',
+                },
+              }}
+            >
+              {latestAlbums.map((album) => (
+                <Box
+                  key={album.id}
+                  onClick={() => onAlbumSelect(album.id, album.name, getHighQualityImage(album.image))}
+                  sx={{
+                    minWidth: 140,
+                    maxWidth: 140,
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                    },
+                  }}
+                >
+                  <Avatar
+                    src={getHighQualityImage(album.image)}
+                    variant="rounded"
+                    sx={{
+                      width: 140,
+                      height: 140,
+                      mb: 1,
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                    }}
+                  >
+                    <AlbumIcon sx={{ fontSize: 60 }} />
+                  </Avatar>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      color: 'text.primary',
+                    }}
+                  >
+                    {album.name}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      display: 'block',
+                    }}
+                  >
+                    {album.artists?.primary?.[0]?.name || 'Various Artists'}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </Box>
+
+        {/* Trending Songs Section */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+            Trending now
+          </Typography>
+          {chartSongs.length > 10 && (
+            <Typography
+              variant="body2"
+              onClick={onViewAllCharts}
+              sx={{
+                color: 'primary.main',
+                cursor: 'pointer',
+                fontWeight: 600,
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              }}
+            >
+              View All
+            </Typography>
+          )}
+        </Box>
 
         {chartSongsLoading && displayedSongs.length === 0 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
@@ -113,8 +214,8 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 2,
-                  mb: 2,
+                  gap: 1.5,
+                  mb: 1,
                   p: 1.5,
                   borderRadius: 1,
                   cursor: item.saavnData ? 'pointer' : 'default',
@@ -218,34 +319,6 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
                 )}
               </Box>
             ))}
-
-            <Box
-              ref={observerTarget}
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                py: 3,
-                minHeight: 100,
-                width: '100%',
-              }}
-            >
-              {displayCount < chartSongs.length && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                  <CircularProgress size={32} sx={{ color: 'primary.main' }} />
-                  <Typography variant="body2" color="text.secondary">
-                    Loading more songs...
-                  </Typography>
-                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.75rem' }}>
-                    Showing {displayCount} of {chartSongs.length}
-                  </Typography>
-                </Box>
-              )}
-              {displayCount >= chartSongs.length && chartSongs.length > 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  🎵 All {chartSongs.length} songs loaded!
-                </Typography>
-              )}
-            </Box>
           </Box>
         )}
       </Box>

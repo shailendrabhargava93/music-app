@@ -127,7 +127,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
                 key={song.id}
                 sx={{
                   borderRadius: 1,
-                  mb: 1,
+                  mb: 0.5,
                   px: 1,
                   py: 1.5,
                   '&:hover': {
