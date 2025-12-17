@@ -102,9 +102,9 @@ export const saavnApi = {
     }
   },
 
-  getPlaylistById: async (playlistId: string): Promise<any> => {
+  getPlaylistById: async (playlistId: string, limit: number = 100): Promise<any> => {
     try {
-      const response = await fetch(`${BASE_URL}/playlists?id=${playlistId}`);
+      const response = await fetch(`${BASE_URL}/playlists?id=${playlistId}&limit=${limit}&page=0`);
       if (!response.ok) {
         throw new Error('Failed to fetch playlist');
       }
@@ -116,9 +116,9 @@ export const saavnApi = {
     }
   },
 
-  getAlbumById: async (albumId: string): Promise<any> => {
+  getAlbumById: async (albumId: string, limit: number = 100): Promise<any> => {
     try {
-      const response = await fetch(`${BASE_URL}/albums?id=${albumId}`);
+      const response = await fetch(`${BASE_URL}/albums?id=${albumId}&limit=${limit}&page=0`);
       if (!response.ok) {
         throw new Error('Failed to fetch album');
       }
@@ -149,8 +149,6 @@ export const saavnApi = {
       // Make sure songId doesn't have any encoding issues
       const cleanSongId = encodeURIComponent(songId.trim());
       const url = `${BASE_URL}/songs/${cleanSongId}/suggestions?limit=${limit}`;
-      console.log('Fetching suggestions from:', url);
-      console.log('Song ID:', songId);
       
       const response = await fetch(url);
       
@@ -161,7 +159,6 @@ export const saavnApi = {
       }
       
       const data = await response.json();
-      console.log('Suggestions response:', data);
       return data;
     } catch (error) {
       console.error('Error fetching song suggestions:', error);

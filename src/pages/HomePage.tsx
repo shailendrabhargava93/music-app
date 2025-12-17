@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, CircularProgress, Avatar } from '@mui/material';
+import { Box, Typography, CircularProgress, Avatar, Skeleton } from '@mui/material';
 import Header from '../components/Header';
 import { Song } from '../types/api';
 import { SoundChartsItem } from '../services/soundChartsApi';
 import { saavnApi } from '../services/saavnApi';
 import AlbumIcon from '@mui/icons-material/Album';
+import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
 
 interface HomePageProps {
   onSongSelect: (song: Song) => void;
@@ -12,6 +13,7 @@ interface HomePageProps {
   chartSongsLoading: boolean;
   onViewAllCharts: () => void;
   onAlbumSelect: (albumId: string, albumName: string, albumImage: string) => void;
+  onPlaylistSelect: (playlistId: string, playlistName: string, playlistImage: string) => void;
 }
 
 interface ChartSongWithSaavn extends SoundChartsItem {
@@ -19,11 +21,14 @@ interface ChartSongWithSaavn extends SoundChartsItem {
   isSearching?: boolean;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSongsLoading, onViewAllCharts, onAlbumSelect }) => {
+const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSongsLoading, onViewAllCharts, onAlbumSelect, onPlaylistSelect }) => {
   const [displayedSongs, setDisplayedSongs] = useState<ChartSongWithSaavn[]>([]);
   const [latestAlbums, setLatestAlbums] = useState<any[]>([]);
   const [albumsLoading, setAlbumsLoading] = useState(true);
   const [albumsFetched, setAlbumsFetched] = useState(false);
+  const [trendingPlaylists, setTrendingPlaylists] = useState<any[]>([]);
+  const [playlistsLoading, setPlaylistsLoading] = useState(true);
+  const [playlistsFetched, setPlaylistsFetched] = useState(false);
 
   // Fetch latest albums only once
   useEffect(() => {
@@ -46,6 +51,28 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
 
     fetchLatestAlbums();
   }, [albumsFetched]);
+
+  // Fetch trending playlists only once
+  useEffect(() => {
+    const fetchTrendingPlaylists = async () => {
+      if (playlistsFetched) return;
+      
+      try {
+        setPlaylistsLoading(true);
+        const response = await saavnApi.searchPlaylists('2025', 10);
+        if (response?.data?.results) {
+          setTrendingPlaylists(response.data.results.slice(0, 10));
+          setPlaylistsFetched(true);
+        }
+      } catch (error) {
+        // Error fetching playlists
+      } finally {
+        setPlaylistsLoading(false);
+      }
+    };
+
+    fetchTrendingPlaylists();
+  }, [playlistsFetched]);
 
   // Update displayed songs - show only first 10 on home page
   useEffect(() => {
@@ -173,6 +200,86 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
           )}
         </Box>
 
+        {/* Trending Playlists Section */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" sx={{ color: 'text.secondary', mb: 2, fontWeight: 500 }}>
+            Trending Playlists
+          </Typography>
+
+          {playlistsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+              <CircularProgress size={32} sx={{ color: 'primary.main' }} />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 2,
+                overflowX: 'auto',
+                pb: 2,
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                '&::-webkit-scrollbar': {
+                  display: 'none',
+                },
+              }}
+            >
+              {trendingPlaylists.map((playlist) => (
+                <Box
+                  key={playlist.id}
+                  onClick={() => onPlaylistSelect(playlist.id, playlist.name, getHighQualityImage(playlist.image))}
+                  sx={{
+                    minWidth: 140,
+                    maxWidth: 140,
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                    },
+                  }}
+                >
+                  <Avatar
+                    src={getHighQualityImage(playlist.image)}
+                    variant="rounded"
+                    sx={{
+                      width: 140,
+                      height: 140,
+                      mb: 1,
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                    }}
+                  >
+                    <PlaylistPlayIcon sx={{ fontSize: 60 }} />
+                  </Avatar>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      color: 'text.primary',
+                    }}
+                  >
+                    {playlist.name}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      display: 'block',
+                    }}
+                  >
+                    {playlist.songCount} songs
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </Box>
+
         {/* Trending Songs Section */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 500 }}>
@@ -197,11 +304,26 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
         </Box>
 
         {chartSongsLoading && displayedSongs.length === 0 && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-            <CircularProgress sx={{ color: 'primary.main', mb: 2 }} />
-            <Typography variant="body2" color="text.secondary">
-              Loading top 100 songs...
-            </Typography>
+          <Box>
+            {[...Array(10)].map((_, index) => (
+              <Box
+                key={index}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  mb: 1,
+                  p: 1.5,
+                }}
+              >
+                <Skeleton variant="text" width={40} height={40} sx={{ flexShrink: 0 }} />
+                <Skeleton variant="rounded" width={56} height={56} sx={{ flexShrink: 0 }} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Skeleton variant="text" width="70%" height={24} />
+                  <Skeleton variant="text" width="50%" height={20} />
+                </Box>
+              </Box>
+            ))}
           </Box>
         )}
 
@@ -229,17 +351,6 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
                   } : {},
                 }}
               >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    minWidth: 40,
-                    fontWeight: 700,
-                    color: 'text.secondary',
-                  }}
-                >
-                  {item.position}
-                </Typography>
-
                 <Box
                   sx={{
                     width: 56,

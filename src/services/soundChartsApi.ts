@@ -58,7 +58,6 @@ export const soundChartsApi = {
       }
 
       const data = await response.json();
-      console.log('SoundCharts API Response:', data);
       
       return data;
     } catch (error) {

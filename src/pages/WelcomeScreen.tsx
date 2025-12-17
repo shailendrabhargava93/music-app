@@ -40,6 +40,9 @@ const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
           textAlign: 'center',
           maxWidth: '400px',
           width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
         }}
       >
         {/* Logo */}
@@ -48,37 +51,47 @@ const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
           src="/wave-logo.png"
           alt="Wave Music"
           sx={{
-            width: { xs: 100, sm: 120 },
-            height: { xs: 100, sm: 120 },
+            width: { xs: 120, sm: 140 },
+            height: { xs: 120, sm: 140 },
             objectFit: 'contain',
-            mb: 3,
-            filter: 'drop-shadow(0 4px 12px rgba(0, 188, 212, 0.4))',
+            mb: 2,
+            filter: 'drop-shadow(0 6px 16px rgba(0, 188, 212, 0.5))',
+            animation: 'float 3s ease-in-out infinite',
+            '@keyframes float': {
+              '0%, 100%': {
+                transform: 'translateY(0px)',
+              },
+              '50%': {
+                transform: 'translateY(-10px)',
+              },
+            },
           }}
         />
         
         {/* App Name */}
         <Typography
-          variant="h6"
+          variant="h5"
           sx={{
             color: '#00BCD4',
-            fontWeight: 600,
-            letterSpacing: 2,
-            mb: 4,
-            fontSize: '0.9rem',
+            fontWeight: 700,
+            letterSpacing: 4,
+            mb: 5,
+            fontSize: { xs: '1.1rem', sm: '1.3rem' },
+            textTransform: 'uppercase',
           }}
         >
-          WAVE MUSIC
+          Wave Music
         </Typography>
 
         {/* Main Heading */}
         <Typography
-          variant="h3"
+          variant="h2"
           sx={{
             color: '#FFFFFF',
             fontWeight: 700,
-            mb: 2,
-            lineHeight: 1.2,
-            fontSize: { xs: '2.5rem', sm: '3rem' },
+            mb: 3,
+            lineHeight: 1.3,
+            fontSize: { xs: '2rem', sm: '2.5rem' },
           }}
         >
           Enjoy your{' '}
@@ -93,18 +106,21 @@ const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
           >
             favorite
           </Box>
+          {' '}music
         </Typography>
+
+        {/* Subtitle */}
         <Typography
-          variant="h3"
+          variant="body1"
           sx={{
-            color: '#FFFFFF',
-            fontWeight: 700,
-            mb: 6,
-            lineHeight: 1.2,
-            fontSize: { xs: '2.5rem', sm: '3rem' },
+            color: 'rgba(255, 255, 255, 0.7)',
+            mb: 5,
+            fontSize: { xs: '0.95rem', sm: '1.05rem' },
+            maxWidth: '320px',
+            lineHeight: 1.6,
           }}
         >
-          music
+          Stream millions of songs and discover new music every day
         </Typography>
 
         {/* Get Started Button */}
@@ -115,15 +131,21 @@ const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
           sx={{
             backgroundColor: '#00BCD4',
             color: '#FFFFFF',
-            py: 2,
+            py: 2.5,
+            px: 6,
             borderRadius: '50px',
-            fontSize: '1rem',
+            fontSize: { xs: '1rem', sm: '1.1rem' },
             fontWeight: 600,
             textTransform: 'none',
-            boxShadow: '0 8px 20px rgba(0, 188, 212, 0.3)',
+            boxShadow: '0 8px 24px rgba(0, 188, 212, 0.4)',
+            transition: 'all 0.3s ease',
             '&:hover': {
               backgroundColor: '#00ACC1',
-              boxShadow: '0 12px 28px rgba(0, 188, 212, 0.4)',
+              boxShadow: '0 12px 32px rgba(0, 188, 212, 0.5)',
+              transform: 'translateY(-2px)',
+            },
+            '&:active': {
+              transform: 'translateY(0px)',
             },
           }}
         >
@@ -140,6 +162,7 @@ const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
           right: 0,
           height: '200px',
           background: 'linear-gradient(180deg, transparent 0%, rgba(0, 188, 212, 0.1) 100%)',
+          pointerEvents: 'none',
         }}
       />
     </Box>

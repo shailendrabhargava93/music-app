@@ -45,6 +45,7 @@ function App() {
     name: string;
     image: string;
     type?: 'playlist' | 'album';
+    sourceTab?: string;
   } | null>(null);
   
   // View All Chart Songs state
@@ -77,6 +78,23 @@ function App() {
       try {
         setChartSongsLoading(true);
         
+        // Check if we have cached data in localStorage
+        const cachedData = localStorage.getItem('chartSongs');
+        const cacheTimestamp = localStorage.getItem('chartSongsTimestamp');
+        const cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+        
+        // Use cached data if it exists and is less than 24 hours old
+        if (cachedData && cacheTimestamp) {
+          const age = Date.now() - parseInt(cacheTimestamp);
+          if (age < cacheExpiry) {
+            const cached = JSON.parse(cachedData);
+            setChartSongs(cached);
+            setChartSongsLoaded(true);
+            setChartSongsLoading(false);
+            return;
+          }
+        }
+        
         const response = await soundChartsApi.getTopSongs(0, 100);
         
         if (response.items && response.items.length > 0) {
@@ -89,20 +107,32 @@ function App() {
           setChartSongsLoaded(true);
 
           // Search Saavn for each song in background
+          const processedSongs: ChartSongWithSaavn[] = [];
           for (let i = 0; i < response.items.length; i++) {
             const item = response.items[i];
             const saavnData = await searchSongOnSaavn(item);
             
+            const updatedSong = { ...item, saavnData, isSearching: false };
+            processedSongs.push(updatedSong);
+            
             setChartSongs(prev => 
               prev.map(song => 
                 song.position === item.position 
-                  ? { ...song, saavnData, isSearching: false }
+                  ? updatedSong
                   : song
               )
             );
 
             await new Promise(resolve => setTimeout(resolve, 200));
           }
+          
+          // Cache the final processed songs
+          const finalSongs = songsWithPlaceholder.map(song => {
+            const processed = processedSongs.find(p => p.position === song.position);
+            return processed || song;
+          });
+          localStorage.setItem('chartSongs', JSON.stringify(finalSongs));
+          localStorage.setItem('chartSongsTimestamp', Date.now().toString());
         }
       } catch (err) {
         // Error loading chart songs
@@ -116,116 +146,104 @@ function App() {
 
   const searchSongOnSaavn = async (item: SoundChartsItem): Promise<Song | undefined> => {
     try {
+      // Normalize text for better comparison
+      const normalizeText = (text: string) => 
+        text.toLowerCase()
+          .replace(/\s+/g, ' ')
+          .replace(/[^\w\s]/g, '')
+          .trim();
+      
+      const normalizeArtist = (name: string) => 
+        name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      const targetSongName = normalizeText(item.song.name);
+      const targetArtist = normalizeArtist(item.song.creditName);
+      
+      // Calculate similarity score between two strings
+      const similarityScore = (str1: string, str2: string): number => {
+        const longer = str1.length > str2.length ? str1 : str2;
+        const shorter = str1.length > str2.length ? str2 : str1;
+        if (longer.length === 0) return 1.0;
+        const editDistance = (s1: string, s2: string): number => {
+          const costs: number[] = [];
+          for (let i = 0; i <= s1.length; i++) {
+            let lastValue = i;
+            for (let j = 0; j <= s2.length; j++) {
+              if (i === 0) {
+                costs[j] = j;
+              } else if (j > 0) {
+                let newValue = costs[j - 1];
+                if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+                  newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+                }
+                costs[j - 1] = lastValue;
+                lastValue = newValue;
+              }
+            }
+            if (i > 0) costs[s2.length] = lastValue;
+          }
+          return costs[s2.length];
+        };
+        return (longer.length - editDistance(longer, shorter)) / longer.length;
+      };
+      
       // First attempt: Search with song name + artist name
       const query = `${item.song.name} ${item.song.creditName}`;
-      let searchResults = await saavnApi.searchSongs(query, 5);
+      let searchResults = await saavnApi.searchSongs(query, 10);
 
       if (searchResults?.data?.results && searchResults.data.results.length > 0) {
-        const bestMatch = searchResults.data.results[0];
+        // Find best match by comparing song names and artists
+        let bestMatch = null;
+        let bestScore = 0;
         
-        return {
-          id: bestMatch.id,
-          name: bestMatch.name,
-          album: bestMatch.album ? {
-            id: bestMatch.album.id || '',
-            name: bestMatch.album.name || '',
-            url: bestMatch.album.url || '',
-          } : undefined,
-          year: bestMatch.year || '',
-          releaseDate: bestMatch.releaseDate || '',
-          duration: bestMatch.duration || 0,
-          label: bestMatch.label || '',
-          primaryArtists: bestMatch.artists?.primary?.map((a: any) => a.name).join(', ') || item.song.creditName,
-          primaryArtistsId: bestMatch.artists?.primary?.map((a: any) => a.id).join(',') || '',
-          featuredArtists: bestMatch.artists?.featured?.map((a: any) => a.name).join(', ') || '',
-          featuredArtistsId: bestMatch.artists?.featured?.map((a: any) => a.id).join(',') || '',
-          explicitContent: bestMatch.explicitContent || 0,
-          playCount: bestMatch.playCount || 0,
-          language: bestMatch.language || '',
-          hasLyrics: bestMatch.hasLyrics || false,
-          url: bestMatch.url || '',
-          copyright: bestMatch.copyright || '',
-          image: Array.isArray(bestMatch.image) ? bestMatch.image : [],
-          downloadUrl: Array.isArray(bestMatch.downloadUrl) ? bestMatch.downloadUrl : [],
-        };
-      }
-      
-      // Fallback: Search by song name only and match artist
-      const fallbackQuery = item.song.name;
-      searchResults = await saavnApi.searchSongs(fallbackQuery, 10);
-      
-      if (searchResults?.data?.results && searchResults.data.results.length > 0) {
-        // Normalize artist name for comparison
-        const normalizeArtist = (name: string) => 
-          name.toLowerCase().replace(/[^a-z0-9]/g, '');
-        
-        const targetArtist = normalizeArtist(item.song.creditName);
-        
-        // Try to find a match with same or similar artist
         for (const result of searchResults.data.results) {
-          const primaryArtistsNames = result.artists?.primary?.map((a: any) => a.name).join(', ') || '';
-          const featuredArtistsNames = result.artists?.featured?.map((a: any) => a.name).join(', ') || '';
-          const allArtists = `${primaryArtistsNames} ${featuredArtistsNames}`;
-          
+          const resultSongName = normalizeText(result.name);
+          const primaryArtists = result.artists?.primary?.map((a: any) => a.name).join(', ') || '';
+          const featuredArtists = result.artists?.featured?.map((a: any) => a.name).join(', ') || '';
+          const allArtists = `${primaryArtists} ${featuredArtists}`;
           const resultArtist = normalizeArtist(allArtists);
           
-          // Check if artist name matches
-          if (resultArtist.includes(targetArtist) || targetArtist.includes(resultArtist)) {
-            return {
-              id: result.id,
-              name: result.name,
-              album: result.album ? {
-                id: result.album.id || '',
-                name: result.album.name || '',
-                url: result.album.url || '',
-              } : undefined,
-              year: result.year || '',
-              releaseDate: result.releaseDate || '',
-              duration: result.duration || 0,
-              label: result.label || '',
-              primaryArtists: primaryArtistsNames || item.song.creditName,
-              primaryArtistsId: result.artists?.primary?.map((a: any) => a.id).join(',') || '',
-              featuredArtists: featuredArtistsNames,
-              featuredArtistsId: result.artists?.featured?.map((a: any) => a.id).join(',') || '',
-              explicitContent: result.explicitContent || 0,
-              playCount: result.playCount || 0,
-              language: result.language || '',
-              hasLyrics: result.hasLyrics || false,
-              url: result.url || '',
-              copyright: result.copyright || '',
-              image: Array.isArray(result.image) ? result.image : [],
-              downloadUrl: Array.isArray(result.downloadUrl) ? result.downloadUrl : [],
-            };
+          // Calculate similarity scores
+          const songNameScore = similarityScore(targetSongName, resultSongName);
+          const artistScore = similarityScore(targetArtist, resultArtist);
+          
+          // Combined score: 70% song name, 30% artist name
+          const totalScore = (songNameScore * 0.7) + (artistScore * 0.3);
+          
+          // Only consider matches with reasonable similarity
+          if (totalScore > bestScore && songNameScore > 0.6) {
+            bestScore = totalScore;
+            bestMatch = result;
           }
         }
         
-        // If no artist match found, return the first result as a best guess
-        const firstResult = searchResults.data.results[0];
-        return {
-          id: firstResult.id,
-          name: firstResult.name,
-          album: firstResult.album ? {
-            id: firstResult.album.id || '',
-            name: firstResult.album.name || '',
-            url: firstResult.album.url || '',
-          } : undefined,
-          year: firstResult.year || '',
-          releaseDate: firstResult.releaseDate || '',
-          duration: firstResult.duration || 0,
-          label: firstResult.label || '',
-          primaryArtists: firstResult.artists?.primary?.map((a: any) => a.name).join(', ') || item.song.creditName,
-          primaryArtistsId: firstResult.artists?.primary?.map((a: any) => a.id).join(',') || '',
-          featuredArtists: firstResult.artists?.featured?.map((a: any) => a.name).join(', ') || '',
-          featuredArtistsId: firstResult.artists?.featured?.map((a: any) => a.id).join(',') || '',
-          explicitContent: firstResult.explicitContent || 0,
-          playCount: firstResult.playCount || 0,
-          language: firstResult.language || '',
-          hasLyrics: firstResult.hasLyrics || false,
-          url: firstResult.url || '',
-          copyright: firstResult.copyright || '',
-          image: Array.isArray(firstResult.image) ? firstResult.image : [],
-          downloadUrl: Array.isArray(firstResult.downloadUrl) ? firstResult.downloadUrl : [],
-        };
+        if (bestMatch) {
+          return {
+            id: bestMatch.id,
+            name: bestMatch.name,
+            album: bestMatch.album ? {
+              id: bestMatch.album.id || '',
+              name: bestMatch.album.name || '',
+              url: bestMatch.album.url || '',
+            } : undefined,
+            year: bestMatch.year || '',
+            releaseDate: bestMatch.releaseDate || '',
+            duration: bestMatch.duration || 0,
+            label: bestMatch.label || '',
+            primaryArtists: bestMatch.artists?.primary?.map((a: any) => a.name).join(', ') || item.song.creditName,
+            primaryArtistsId: bestMatch.artists?.primary?.map((a: any) => a.id).join(',') || '',
+            featuredArtists: bestMatch.artists?.featured?.map((a: any) => a.name).join(', ') || '',
+            featuredArtistsId: bestMatch.artists?.featured?.map((a: any) => a.id).join(',') || '',
+            explicitContent: bestMatch.explicitContent || 0,
+            playCount: bestMatch.playCount || 0,
+            language: bestMatch.language || '',
+            hasLyrics: bestMatch.hasLyrics || false,
+            url: bestMatch.url || '',
+            copyright: bestMatch.copyright || '',
+            image: Array.isArray(bestMatch.image) ? bestMatch.image : [],
+            downloadUrl: Array.isArray(bestMatch.downloadUrl) ? bestMatch.downloadUrl : [],
+          };
+        }
       }
       
       return undefined;
@@ -354,21 +372,17 @@ function App() {
   };
 
   const handlePlaylistSelect = (playlistId: string, playlistName: string, playlistImage: string) => {
-    setSelectedPlaylist({ id: playlistId, name: playlistName, image: playlistImage, type: 'playlist' });
+    setSelectedPlaylist({ id: playlistId, name: playlistName, image: playlistImage, type: 'playlist', sourceTab: activeTab });
   };
 
   const handleAlbumSelect = (albumId: string, albumName: string, albumImage: string) => {
-    setSelectedPlaylist({ id: albumId, name: albumName, image: albumImage, type: 'album' });
+    setSelectedPlaylist({ id: albumId, name: albumName, image: albumImage, type: 'album', sourceTab: activeTab });
   };
 
   const handleBackFromPlaylist = () => {
+    const sourceTab = selectedPlaylist?.sourceTab || 'home';
     setSelectedPlaylist(null);
-    // Return to appropriate tab based on playlist type
-    if (selectedPlaylist?.type === 'album') {
-      setActiveTab('home');
-    } else {
-      setActiveTab('search');
-    }
+    setActiveTab(sourceTab);
   };
 
   const handleViewAllCharts = () => {
@@ -377,6 +391,13 @@ function App() {
 
   const handleBackFromAllCharts = () => {
     setShowAllCharts(false);
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    // Reset showAllCharts and selectedPlaylist when navigating via bottom nav
+    setShowAllCharts(false);
+    setSelectedPlaylist(null);
   };
 
   const handleFavouriteSongSelect = async (songId: string) => {
@@ -454,6 +475,7 @@ function App() {
             chartSongsLoading={chartSongsLoading}
             onViewAllCharts={handleViewAllCharts}
             onAlbumSelect={handleAlbumSelect}
+            onPlaylistSelect={handlePlaylistSelect}
           />
         );
       case 'search':
@@ -538,7 +560,7 @@ function App() {
               />
             </>
           )}
-          <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+          <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
           <InstallPrompt />
         </Box>
       )}

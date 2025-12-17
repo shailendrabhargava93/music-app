@@ -110,32 +110,27 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
   // Fetch album songs when song changes (for Up Next)
   useEffect(() => {
     const fetchAlbumSongs = async () => {
-      if (!albumId) {
+      if (!albumId || !songId) {
         setSuggestions([]);
         return;
       }
       
       try {
         setSuggestionsLoading(true);
-        console.log('Fetching album songs for album ID:', albumId);
         const response = await saavnApi.getAlbumById(albumId);
-        console.log('Album response:', response);
         
-        if (response.success && response.data && response.data.songs) {
+        if (response?.success && response.data?.songs && Array.isArray(response.data.songs)) {
           const albumSongs = response.data.songs;
           // Filter out current song and take up to 5 songs
           const otherSongs = albumSongs
-            .filter((song: any) => song && song.id && song.id !== songId)
+            .filter((song: any) => song && song.id && song.name && song.id !== songId)
             .slice(0, 5);
           
-          console.log('Album songs for Up Next:', otherSongs);
           setSuggestions(otherSongs);
         } else {
-          console.log('No album songs found in response');
           setSuggestions([]);
         }
       } catch (error) {
-        console.error('Error fetching album songs:', albumId, error);
         setSuggestions([]);
       } finally {
         setSuggestionsLoading(false);

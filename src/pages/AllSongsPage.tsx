@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Box, Typography, CircularProgress, IconButton } from '@mui/material';
+import { Box, Typography, CircularProgress, IconButton, Skeleton, Button } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { Song } from '../types/api';
 import { SoundChartsItem } from '../services/soundChartsApi';
@@ -18,49 +18,57 @@ interface ChartSongWithSaavn extends SoundChartsItem {
 const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, onBack }) => {
   const [displayedSongs, setDisplayedSongs] = useState<ChartSongWithSaavn[]>([]);
   const [displayCount, setDisplayCount] = useState(20);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
 
   // Update displayed songs when displayCount changes
   useEffect(() => {
     if (chartSongs.length > 0) {
       setDisplayedSongs(chartSongs.slice(0, displayCount));
+      setIsLoadingMore(false);
     }
   }, [chartSongs, displayCount]);
 
+  // Function to load more songs
+  const loadMoreSongs = () => {
+    if (displayCount < chartSongs.length && !isLoadingMore) {
+      setIsLoadingMore(true);
+      setDisplayCount(prev => Math.min(prev + 20, chartSongs.length));
+    }
+  };
+
   // Intersection Observer for infinite scroll
   useEffect(() => {
+    const currentTarget = observerTarget.current;
+    if (!currentTarget || chartSongs.length === 0) return;
+
+    // Don't set up observer if all songs are already displayed
     if (displayCount >= chartSongs.length) {
-      return; // Don't observe if all songs are displayed
+      return;
     }
 
     const observer = new IntersectionObserver(
       entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            const newCount = Math.min(displayCount + 20, chartSongs.length);
-            if (newCount > displayCount) {
-              setDisplayCount(newCount);
-            }
-          }
-        });
+        const entry = entries[0];
+        if (entry.isIntersecting && displayCount < chartSongs.length && !isLoadingMore) {
+          // Load 20 more songs
+          loadMoreSongs();
+        }
       },
       { 
-        threshold: 0,
-        rootMargin: '200px'
+        threshold: 0.1,
+        rootMargin: '200px' // Increased to trigger earlier
       }
     );
 
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
+    observer.observe(currentTarget);
 
     return () => {
       if (currentTarget) {
         observer.unobserve(currentTarget);
       }
     };
-  }, [displayCount, chartSongs.length]);
+  }, [displayCount, chartSongs.length, isLoadingMore]);
 
   const handleSongClick = (song: ChartSongWithSaavn) => {
     if (song.saavnData) {
@@ -87,7 +95,14 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
   };
 
   return (
-    <Box sx={{ pb: 16, minHeight: '100vh' }}>
+    <Box 
+      sx={{ 
+        pb: 25, 
+        minHeight: '100vh',
+        position: 'relative',
+        overflow: 'auto'
+      }}
+    >
       {/* Header with Back Button */}
       <Box
         sx={{
@@ -121,6 +136,30 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
           Top 100 Songs in India • Spotify Charts
         </Typography>
 
+        {chartSongs.length === 0 && (
+          <Box>
+            {[...Array(20)].map((_, index) => (
+              <Box
+                key={index}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  mb: 1,
+                  p: 1.5,
+                }}
+              >
+                <Skeleton variant="text" width={40} height={40} sx={{ flexShrink: 0 }} />
+                <Skeleton variant="rounded" width={56} height={56} sx={{ flexShrink: 0 }} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Skeleton variant="text" width="70%" height={24} />
+                  <Skeleton variant="text" width="50%" height={20} />
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        )}
+
         {displayedSongs.length > 0 && (
           <Box>
             {displayedSongs.map((item) => (
@@ -145,17 +184,6 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
                   } : {},
                 }}
               >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    minWidth: 40,
-                    fontWeight: 700,
-                    color: 'text.secondary',
-                  }}
-                >
-                  {item.position}
-                </Typography>
-
                 <Box
                   sx={{
                     width: 56,
@@ -236,33 +264,55 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
               </Box>
             ))}
 
-            <Box
-              ref={observerTarget}
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                py: 3,
-                minHeight: 100,
-                width: '100%',
-              }}
-            >
-              {displayCount < chartSongs.length && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                  <CircularProgress size={32} sx={{ color: 'primary.main' }} />
-                  <Typography variant="body2" color="text.secondary">
-                    Loading more songs...
-                  </Typography>
-                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.75rem' }}>
-                    Showing {displayCount} of {chartSongs.length}
-                  </Typography>
-                </Box>
-              )}
-              {displayCount >= chartSongs.length && chartSongs.length > 0 && (
+            {/* Loading indicator and observer target */}
+            {displayCount < chartSongs.length && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: 2,
+                  py: 4,
+                  minHeight: 100,
+                  width: '100%',
+                }}
+              >
+                <Box ref={observerTarget} sx={{ height: 20, width: '100%' }} />
+                {isLoadingMore && <CircularProgress size={32} sx={{ color: 'primary.main' }} />}
+                <Button
+                  variant="outlined"
+                  onClick={loadMoreSongs}
+                  disabled={isLoadingMore}
+                  sx={{
+                    borderColor: 'primary.main',
+                    color: 'primary.main',
+                    '&:hover': {
+                      borderColor: 'primary.dark',
+                      backgroundColor: 'rgba(0, 188, 212, 0.08)',
+                    },
+                  }}
+                >
+                  {isLoadingMore ? 'Loading...' : `Load More (${chartSongs.length - displayCount} remaining)`}
+                </Button>
+              </Box>
+            )}
+            
+            {/* All songs loaded message */}
+            {displayCount >= chartSongs.length && chartSongs.length > 0 && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  py: 3,
+                  width: '100%',
+                }}
+              >
                 <Typography variant="body2" color="text.secondary">
                   🎵 All {chartSongs.length} songs loaded!
                 </Typography>
-              )}
-            </Box>
+              </Box>
+            )}
           </Box>
         )}
       </Box>

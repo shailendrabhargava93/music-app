@@ -149,7 +149,12 @@ const UpNextDrawer: React.FC<UpNextDrawerProps> = ({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {song.primaryArtists || 'Unknown Artist'}
+                      {(() => {
+                        if (song.artists?.primary && Array.isArray(song.artists.primary)) {
+                          return song.artists.primary.map((artist: any) => artist.name).join(', ');
+                        }
+                        return song.primaryArtists || 'Unknown Artist';
+                      })()}
                     </Typography>
                   }
                 />
