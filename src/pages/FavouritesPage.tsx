@@ -236,9 +236,9 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
               },
             }}
           >
-            <Tab label="Songs" />
-            <Tab label="Albums" />
-            <Tab label="Playlists" />
+            <Tab icon={<MusicNoteIcon />} iconPosition="start" label="Songs" />
+            <Tab icon={<AlbumIcon />} iconPosition="start" label="Albums" />
+            <Tab icon={<PlaylistPlayIcon />} iconPosition="start" label="Playlists" />
           </Tabs>
         </Box>
 
@@ -274,7 +274,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
                       borderRadius: 1,
                       mb: 0.5,
                       px: 1,
-                      py: 1.5,
+                      py: 0.5,
                       '&:hover': {
                         bgcolor: (theme) =>
                           theme.palette.mode === 'light'

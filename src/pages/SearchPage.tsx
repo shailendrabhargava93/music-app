@@ -12,28 +12,26 @@ import {
   CircularProgress,
   Chip,
   IconButton,
-  Menu,
-  MenuItem,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
+import AlbumIcon from '@mui/icons-material/Album';
 import ClearIcon from '@mui/icons-material/Clear';
 import HistoryIcon from '@mui/icons-material/History';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import QueueMusicIcon from '@mui/icons-material/QueueMusic';
-import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
-import FavoriteIcon from '@mui/icons-material/Favorite';
 import { saavnApi } from '../services/saavnApi';
 import { Song } from '../types/api';
 
 interface SearchPageProps {
   onSongSelect: (song: Song) => void;
   onPlaylistSelect: (playlistId: string, playlistName: string, playlistImage: string) => void;
+  onAlbumSelect: (albumId: string, albumName: string, albumImage: string) => void;
 }
 
-const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect }) => {
+const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect, onAlbumSelect }) => {
   // Use state that persists in sessionStorage
   const [searchQuery, setSearchQuery] = useState(() => {
     return sessionStorage.getItem('searchQuery') || '';
@@ -46,6 +44,11 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect 
     const saved = sessionStorage.getItem('searchPlaylists');
     return saved ? JSON.parse(saved) : [];
   });
+  const [albums, setAlbums] = useState<any[]>(() => {
+    const saved = sessionStorage.getItem('searchAlbums');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(() => {
     return sessionStorage.getItem('hasSearched') === 'true';
@@ -64,6 +67,10 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect 
   useEffect(() => {
     sessionStorage.setItem('searchPlaylists', JSON.stringify(playlists));
   }, [playlists]);
+
+  useEffect(() => {
+    sessionStorage.setItem('searchAlbums', JSON.stringify(albums));
+  }, [albums]);
 
   useEffect(() => {
     sessionStorage.setItem('hasSearched', hasSearched ? 'true' : 'false');
@@ -121,6 +128,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect 
     if (!query.trim() || query.trim().length < 3) {
       setSongs([]);
       setPlaylists([]);
+      setAlbums([]);
       setHasSearched(false);
       return;
     }
@@ -130,10 +138,11 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect 
 
     setLoading(true);
     try {
-      // Call both APIs in parallel
-      const [songsResponse, playlistsResponse] = await Promise.all([
+      // Call all three APIs in parallel
+      const [songsResponse, playlistsResponse, albumsResponse] = await Promise.all([
         saavnApi.searchSongs(query, 10),
-        saavnApi.searchPlaylists(query, 10)
+        saavnApi.searchPlaylists(query, 10),
+        saavnApi.searchAlbums(query, 10)
       ]);
       
       // Extract songs from response
@@ -158,12 +167,25 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect 
                playlist.image.length > 0;
       }).slice(0, 10);
       
+      // Extract albums from response
+      const albumsData = albumsResponse.data?.results || [];
+      
+      const validAlbums = albumsData.filter((album: any) => {
+        return album && 
+               album.id && 
+               album.name && 
+               album.image && 
+               album.image.length > 0;
+      }).slice(0, 10);
+      
       setSongs(validSongs);
       setPlaylists(validPlaylists);
+      setAlbums(validAlbums);
       setHasSearched(true);
     } catch (error) {
       setSongs([]);
       setPlaylists([]);
+      setAlbums([]);
       setHasSearched(true);
     } finally {
       setLoading(false);
@@ -191,6 +213,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect 
     setSearchQuery('');
     setSongs([]);
     setPlaylists([]);
+    setAlbums([]);
     setHasSearched(false);
   };
 
@@ -229,7 +252,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect 
         value={searchQuery}
         onChange={handleInputChange}
         onKeyPress={handleKeyPress}
-        placeholder="Search songs, playlists..."
+        placeholder="What do you want to listen to?"
         variant="outlined"
         autoFocus
         InputProps={{
@@ -341,157 +364,289 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect 
         >
           <CircularProgress size={48} sx={{ color: 'primary.main' }} />
           <Typography variant="body1" sx={{ color: 'text.secondary' }}>
-            Searching for songs and playlists...
+            Searching...
           </Typography>
         </Box>
       )}
 
-      {/* Songs Section */}
-      {!loading && songs.length > 0 && (
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <MusicNoteIcon sx={{ color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 'bold' }}>
-              Songs
-            </Typography>
-          </Box>
-          <List sx={{ bgcolor: 'transparent', p: 0 }}>
-            {songs.map((song) => (
-              <React.Fragment key={song.id}>
-                <ListItem
-                  onClick={() => onSongSelect(song)}
-                  sx={{
-                    cursor: 'pointer',
-                    borderRadius: 1,
-                    px: 1,
-                    py: 1.5,
-                    mb: 0.5,
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                    },
-                  }}
-                >
-                  <ListItemAvatar sx={{ minWidth: 72 }}>
-                    <Avatar
-                      src={getHighQualityImage(song.image)}
-                      variant="rounded"
-                      sx={{ width: 56, height: 56 }}
-                    >
-                      <MusicNoteIcon />
-                    </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={
-                      <Typography
-                        sx={{
-                          color: 'text.primary',
-                          fontWeight: 500,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {decodeHtmlEntities(song.name)}
-                      </Typography>
-                    }
-                    secondary={
-                      <Box>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: 'text.secondary',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {decodeHtmlEntities(getArtistNames(song))}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                          {decodeHtmlEntities(song.album?.name || 'Unknown Album')} • {formatDuration(song.duration)}
-                        </Typography>
-                      </Box>
-                    }
-                    secondaryTypographyProps={{ component: 'div' }}
-                  />
-                </ListItem>
-              </React.Fragment>
-            ))}
-          </List>
-        </Box>
-      )}
-
-      {/* Playlists Section */}
-      {!loading && playlists.length > 0 && (
+      {/* Tabs for Search Results */}
+      {!loading && hasSearched && (songs.length > 0 || playlists.length > 0 || albums.length > 0) && (
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <PlaylistPlayIcon sx={{ color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 'bold' }}>
-              Playlists
-            </Typography>
-          </Box>
-          <List sx={{ bgcolor: 'transparent', p: 0 }}>
-            {playlists.map((playlist) => (
-              <React.Fragment key={playlist.id}>
-                <ListItem
-                  onClick={() => onPlaylistSelect(playlist.id, decodeHtmlEntities(playlist.name), getHighQualityImage(playlist.image))}
+          <Tabs
+            value={activeTab}
+            onChange={(_, newValue) => setActiveTab(newValue)}
+            sx={{
+              borderBottom: 1,
+              borderColor: 'divider',
+              mb: 2,
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 500,
+                fontSize: '0.9rem',
+                minWidth: 80,
+                minHeight: 48,
+              },
+              '& .Mui-selected': {
+                color: 'primary.main',
+                fontWeight: 600,
+              },
+            }}
+          >
+            <Tab icon={<MusicNoteIcon />} iconPosition="start" label="Songs" />
+            <Tab icon={<AlbumIcon />} iconPosition="start" label="Albums" />
+            <Tab icon={<PlaylistPlayIcon />} iconPosition="start" label="Playlists" />
+          </Tabs>
+
+          {/* Songs Tab */}
+          {activeTab === 0 && (
+            <Box>
+              {songs.length === 0 ? (
+                <Box
                   sx={{
-                    cursor: 'pointer',
-                    borderRadius: 1,
-                    px: 1,
-                    py: 1.5,
-                    mb: 0.5,
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                    },
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '30vh',
+                    gap: 2,
                   }}
                 >
-                  <ListItemAvatar sx={{ minWidth: 72 }}>
-                    <Avatar
-                      src={getHighQualityImage(playlist.image)}
-                      variant="rounded"
-                      sx={{ width: 56, height: 56 }}
+                  <MusicNoteIcon sx={{ fontSize: 64, color: 'text.disabled', opacity: 0.3 }} />
+                  <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                    No songs found
+                  </Typography>
+                </Box>
+              ) : (
+                <List sx={{ bgcolor: 'transparent', p: 0 }}>
+                  {songs.map((song) => (
+                    <ListItem
+                      key={song.id}
+                      onClick={() => onSongSelect(song)}
+                      sx={{
+                        cursor: 'pointer',
+                        borderRadius: 1,
+                        px: 1,
+                        py: 0.5,
+                        mb: 0.5,
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                        },
+                      }}
                     >
-                      <PlaylistPlayIcon />
-                    </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={
-                      <Typography
-                        sx={{
-                          color: 'text.primary',
-                          fontWeight: 500,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {decodeHtmlEntities(playlist.name)}
-                      </Typography>
-                    }
-                    secondary={
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: 'text.secondary',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {playlist.songCount} songs
-                      </Typography>
-                    }
-                  />
-                </ListItem>
-              </React.Fragment>
-            ))}
-          </List>
+                      <ListItemAvatar sx={{ minWidth: 72 }}>
+                        <Avatar
+                          src={getHighQualityImage(song.image)}
+                          variant="rounded"
+                          sx={{ width: 56, height: 56 }}
+                        >
+                          <MusicNoteIcon />
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={
+                          <Typography
+                            sx={{
+                              color: 'text.primary',
+                              fontWeight: 500,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {decodeHtmlEntities(song.name)}
+                          </Typography>
+                        }
+                        secondary={
+                          <Box>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: 'text.secondary',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {decodeHtmlEntities(getArtistNames(song))}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                              {decodeHtmlEntities(song.album?.name || 'Unknown Album')} • {formatDuration(song.duration)}
+                            </Typography>
+                          </Box>
+                        }
+                        secondaryTypographyProps={{ component: 'div' }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
+          )}
+
+          {/* Albums Tab */}
+          {activeTab === 1 && (
+            <Box>
+              {albums.length === 0 ? (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '30vh',
+                    gap: 2,
+                  }}
+                >
+                  <AlbumIcon sx={{ fontSize: 64, color: 'text.disabled', opacity: 0.3 }} />
+                  <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                    No albums found
+                  </Typography>
+                </Box>
+              ) : (
+                <List sx={{ bgcolor: 'transparent', p: 0 }}>
+                  {albums.map((album) => (
+                    <ListItem
+                      key={album.id}
+                      onClick={() => onAlbumSelect(album.id, decodeHtmlEntities(album.name), getHighQualityImage(album.image))}
+                      sx={{
+                        cursor: 'pointer',
+                        borderRadius: 1,
+                        px: 1,
+                        py: 1,
+                        mb: 0.5,
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                        },
+                      }}
+                    >
+                      <ListItemAvatar sx={{ minWidth: 72 }}>
+                        <Avatar
+                          src={getHighQualityImage(album.image)}
+                          variant="rounded"
+                          sx={{ width: 56, height: 56 }}
+                        >
+                          <AlbumIcon />
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={
+                          <Typography
+                            sx={{
+                              color: 'text.primary',
+                              fontWeight: 500,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {decodeHtmlEntities(album.name)}
+                          </Typography>
+                        }
+                        secondary={
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: 'text.secondary',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {album.artists?.primary?.[0]?.name || 'Various Artists'}
+                          </Typography>
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
+          )}
+
+          {/* Playlists Tab */}
+          {activeTab === 2 && (
+            <Box>
+              {playlists.length === 0 ? (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '30vh',
+                    gap: 2,
+                  }}
+                >
+                  <PlaylistPlayIcon sx={{ fontSize: 64, color: 'text.disabled', opacity: 0.3 }} />
+                  <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                    No playlists found
+                  </Typography>
+                </Box>
+              ) : (
+                <List sx={{ bgcolor: 'transparent', p: 0 }}>
+                  {playlists.map((playlist) => (
+                    <ListItem
+                      key={playlist.id}
+                      onClick={() => onPlaylistSelect(playlist.id, decodeHtmlEntities(playlist.name), getHighQualityImage(playlist.image))}
+                      sx={{
+                        cursor: 'pointer',
+                        borderRadius: 1,
+                        px: 1,
+                        py: 1,
+                        mb: 0.5,
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                        },
+                      }}
+                    >
+                      <ListItemAvatar sx={{ minWidth: 72 }}>
+                        <Avatar
+                          src={getHighQualityImage(playlist.image)}
+                          variant="rounded"
+                          sx={{ width: 56, height: 56 }}
+                        >
+                          <PlaylistPlayIcon />
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={
+                          <Typography
+                            sx={{
+                              color: 'text.primary',
+                              fontWeight: 500,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {decodeHtmlEntities(playlist.name)}
+                          </Typography>
+                        }
+                        secondary={
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: 'text.secondary',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {playlist.songCount} songs
+                          </Typography>
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
+          )}
         </Box>
       )}
 
       {/* No Results */}
-      {!loading && hasSearched && songs.length === 0 && playlists.length === 0 && (
+      {!loading && hasSearched && songs.length === 0 && playlists.length === 0 && albums.length === 0 && (
         <Box
           sx={{
             display: 'flex',
@@ -513,23 +668,36 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect 
       )}
 
       {/* Initial State */}
-      {!hasSearched && !loading && (
+      {!hasSearched && !loading && recentSearches.length === 0 && (
         <Box
           sx={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: '40vh',
-            gap: 2,
+            minHeight: '50vh',
+            gap: 1.5,
+            px: 3,
           }}
         >
-          <SearchIcon sx={{ fontSize: 64, color: '#404040' }} />
-          <Typography variant="h6" sx={{ color: '#b3b3b3' }}>
-            Search for songs and playlists
+          <Typography 
+            variant="h5" 
+            sx={{ 
+              color: 'text.primary',
+              fontWeight: 'bold',
+              textAlign: 'center'
+            }}
+          >
+            Everything you need
           </Typography>
-          <Typography variant="body2" sx={{ color: '#888' }}>
-            Type at least 3 characters to search
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: 'text.secondary',
+              textAlign: 'center'
+            }}
+          >
+            Search for songs, artists, albums, playlists, and more
           </Typography>
         </Box>
       )}

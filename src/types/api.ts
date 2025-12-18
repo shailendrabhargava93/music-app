@@ -99,4 +99,5 @@ export interface CurrentSong {
   year?: string;
   language?: string;
   explicitContent?: boolean;
+  source?: string; // Album or playlist name where song is being played from
 }

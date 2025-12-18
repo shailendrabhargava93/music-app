@@ -150,7 +150,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
         favourites.push(newFavourite);
         localStorage.setItem('favouriteSongs', JSON.stringify(favourites));
         if (onShowSnackbar) {
-          onShowSnackbar('Added to favourites');
+          onShowSnackbar('Added to favourites ❤️');
         }
       }
     }
@@ -389,7 +389,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
                   cursor: 'pointer',
                   borderRadius: 1,
                   px: 1,
-                  py: 1.5,
+                  py: 1,
                   mb: 0.5,
                   '&:hover': {
                     bgcolor: (theme) =>

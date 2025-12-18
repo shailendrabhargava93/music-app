@@ -54,6 +54,7 @@ interface FullPlayerProps {
   year?: string;
   language?: string;
   explicitContent?: boolean;
+  source?: string; // Album or playlist name
 }
 
 const FullPlayer: React.FC<FullPlayerProps> = ({ 
@@ -78,7 +79,8 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
   label,
   copyright,
   year,
-  language
+  language,
+  source
 }) => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [progress, setProgress] = useState(externalProgress);
@@ -309,9 +311,16 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
           >
             <KeyboardArrowDownIcon fontSize="large" />
           </IconButton>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: 1 }}>
-            NOW PLAYING
-          </Typography>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: 1 }}>
+              NOW PLAYING
+            </Typography>
+            {source && (
+              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.7rem', display: 'block' }}>
+                {source}
+              </Typography>
+            )}
+          </Box>
           <IconButton 
             sx={{ color: 'text.primary' }} 
             aria-label="song information"

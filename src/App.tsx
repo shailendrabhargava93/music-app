@@ -343,6 +343,7 @@ function App() {
         year: songDetails.year || 'Unknown Year',
         language: songDetails.language || 'Unknown Language',
         explicitContent: songDetails.explicitContent || false,
+        source: selectedPlaylist ? selectedPlaylist.name : undefined,
       };
 
       setCurrentSong(newSong);
@@ -615,6 +616,7 @@ function App() {
           <SearchPage 
             onSongSelect={handleSongSelect}
             onPlaylistSelect={handlePlaylistSelect}
+            onAlbumSelect={handleAlbumSelect}
           />
         );
       case 'settings':
@@ -622,6 +624,7 @@ function App() {
           <SettingsPage 
             isDarkMode={isDarkMode}
             onThemeToggle={handleThemeToggle}
+            onNavigateHome={() => setActiveTab('home')}
           />
         );
       case 'favourites':
@@ -696,6 +699,7 @@ function App() {
                 year={currentSong.year}
                 language={currentSong.language}
                 explicitContent={currentSong.explicitContent}
+                source={currentSong.source}
               />
             </>
           )}

@@ -11,10 +11,7 @@ interface ExplorePageProps {
 const moods = [
   { label: 'Chill', color: '#00BCD4' },
   { label: 'Commute', color: '#FFC107' },
-  { label: 'Energize', color: '#FF9800' },
   { label: 'Feel good', color: '#4CAF50' },
-  { label: 'Focus', color: '#9E9E9E' },
-  { label: 'Gaming', color: '#607D8B' },
   { label: 'Party', color: '#9C27B0' },
   { label: 'Romance', color: '#F44336' },
   { label: 'Sad', color: '#9E9E9E' },
@@ -23,15 +20,11 @@ const moods = [
 ];
 
 const genres = [
-  { label: 'African', color: '#4CAF50' },
-  { label: 'Arabic', color: '#FF5722' },
   { label: 'Bengali', color: '#FFC107' },
   { label: 'Bhojpuri', color: '#9C27B0' },
   { label: 'Carnatic classical', color: '#FF9800' },
   { label: 'Classical', color: '#607D8B' },
-  { label: 'Country & Americana', color: '#2196F3' },
   { label: 'Dance & electronic', color: '#00BCD4' },
-  { label: 'Decades', color: '#4CAF50' },
   { label: 'Devotional', color: '#607D8B' },
   { label: 'Family', color: '#00BCD4' },
   { label: 'Folk & acoustic', color: '#4CAF50' },
@@ -48,7 +41,6 @@ const genres = [
   { label: 'Jazz', color: '#2196F3' },
   { label: 'K-Pop', color: '#9C27B0' },
   { label: 'Kannada', color: '#FFC107' },
-  { label: 'Latin', color: '#FFC107' },
   { label: 'Malayalam', color: '#4CAF50' },
   { label: 'Marathi', color: '#9C27B0' },
   { label: 'Metal', color: '#607D8B' },
@@ -218,13 +210,23 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
                 height: 48,
                 fontSize: '0.95rem',
                 fontWeight: 500,
-                bgcolor: 'rgba(255, 255, 255, 0.05)',
+                bgcolor: (theme) => 
+                  theme.palette.mode === 'light' 
+                    ? 'rgba(0, 0, 0, 0.04)' 
+                    : 'rgba(255, 255, 255, 0.05)',
                 color: 'text.primary',
                 borderLeft: `4px solid ${mood.color}`,
                 borderRadius: 1,
                 justifyContent: 'flex-start',
+                border: (theme) => 
+                  theme.palette.mode === 'light' 
+                    ? '1px solid rgba(0, 0, 0, 0.08)' 
+                    : 'none',
                 '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  bgcolor: (theme) => 
+                    theme.palette.mode === 'light' 
+                      ? 'rgba(0, 0, 0, 0.08)' 
+                      : 'rgba(255, 255, 255, 0.1)',
                 },
                 '& .MuiChip-label': {
                   px: 2,
@@ -250,13 +252,23 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
                 height: 48,
                 fontSize: '0.95rem',
                 fontWeight: 500,
-                bgcolor: 'rgba(255, 255, 255, 0.05)',
+                bgcolor: (theme) => 
+                  theme.palette.mode === 'light' 
+                    ? 'rgba(0, 0, 0, 0.04)' 
+                    : 'rgba(255, 255, 255, 0.05)',
                 color: 'text.primary',
                 borderLeft: `4px solid ${genre.color}`,
                 borderRadius: 1,
                 justifyContent: 'flex-start',
+                border: (theme) => 
+                  theme.palette.mode === 'light' 
+                    ? '1px solid rgba(0, 0, 0, 0.08)' 
+                    : 'none',
                 '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  bgcolor: (theme) => 
+                    theme.palette.mode === 'light' 
+                      ? 'rgba(0, 0, 0, 0.08)' 
+                      : 'rgba(255, 255, 255, 0.1)',
                 },
                 '& .MuiChip-label': {
                   px: 2,

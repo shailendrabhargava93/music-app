@@ -16,17 +16,20 @@ import {
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import ShareIcon from '@mui/icons-material/Share';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 
 interface SettingsPageProps {
   isDarkMode: boolean;
   onThemeToggle: () => void;
+  onNavigateHome?: () => void;
 }
 
 const SettingsPage: React.FC<SettingsPageProps> = ({ 
   isDarkMode, 
-  onThemeToggle
+  onThemeToggle,
+  onNavigateHome
 }) => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -69,17 +72,31 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
       }}
     >
       <Container maxWidth="md">
-        <Typography 
-          variant="h5" 
-          sx={{ 
-            color: 'text.primary', 
-            fontWeight: 'bold',
-            mb: 3,
-            px: 2
-          }}
-        >
-          Settings
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, px: 2 }}>
+          {onNavigateHome && (
+            <IconButton
+              onClick={onNavigateHome}
+              sx={{
+                mr: 1,
+                color: 'text.primary',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+              }}
+            >
+              <ArrowBackIcon />
+            </IconButton>
+          )}
+          <Typography 
+            variant="h5" 
+            sx={{ 
+              color: 'text.primary', 
+              fontWeight: 'bold'
+            }}
+          >
+            Settings
+          </Typography>
+        </Box>
 
         <Paper 
           elevation={0}
@@ -315,15 +332,13 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         <Alert 
           onClose={() => setSnackbarOpen(false)} 
           severity="success"
+          icon={false}
           sx={{ 
             width: '100%',
             bgcolor: 'background.paper',
             color: 'text.primary',
             border: '1px solid',
-            borderColor: 'divider',
-            '& .MuiAlert-icon': {
-              color: 'success.main'
-            }
+            borderColor: 'divider'
           }}
         >
           {snackbarMessage}

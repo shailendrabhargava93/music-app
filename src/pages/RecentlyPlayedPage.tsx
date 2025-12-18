@@ -86,7 +86,7 @@ const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongS
         favourites.push(newFav);
         localStorage.setItem('favouriteSongs', JSON.stringify(favourites));
         if (onShowSnackbar) {
-          onShowSnackbar('Added to favourites');
+          onShowSnackbar('Added to favourites ❤️');
         }
       }
     }
