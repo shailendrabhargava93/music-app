@@ -158,13 +158,13 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
   };
 
   return (
-    <Box sx={{ pb: 16 }}>
+    <Box sx={{ pb: 10, pt: 1 }}>
       <Header 
         onRecentlyPlayedClick={onRecentlyPlayedClick}
         onSettingsClick={onSettingsClick}
       />
       
-      <Box sx={{ px: 2, pt: 1 }}>
+      <Box sx={{ px: 2 }}>
         {/* Latest Albums Section */}
         <Box sx={{ mb: 3 }}>
           <Typography variant="h6" sx={{ color: 'text.secondary', mb: 1.5, fontWeight: 500 }}>

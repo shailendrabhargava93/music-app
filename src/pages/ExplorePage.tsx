@@ -121,9 +121,9 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
 
   if (selectedCategory) {
     return (
-      <Box sx={{ pb: 10 }}>
+      <Box sx={{ pb: 10, pt: 1 }}>
         {/* Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, px: 2, pt: 1, gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, px: 2, gap: 1 }}>
           <IconButton onClick={handleBack}>
             <ArrowBackIcon />
           </IconButton>

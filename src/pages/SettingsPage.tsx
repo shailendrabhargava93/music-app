@@ -73,30 +73,21 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         minHeight: '100vh',
         bgcolor: 'background.default',
         pb: 10,
-        pt: 1.5
+        pt: 1
       }}
     >
       <Container maxWidth="md">
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, px: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, px: 2, pt: 1, gap: 1 }}>
           {onNavigateHome && (
-            <IconButton
-              onClick={onNavigateHome}
-              sx={{
-                mr: 1,
-                color: 'text.primary',
-                '&:hover': {
-                  bgcolor: 'action.hover',
-                },
-              }}
-            >
+            <IconButton onClick={onNavigateHome}>
               <ArrowBackIcon />
             </IconButton>
           )}
           <Typography 
-            variant="h5" 
+            variant="h6" 
             sx={{ 
               color: 'text.primary', 
-              fontWeight: 'bold'
+              fontWeight: 600
             }}
           >
             Settings

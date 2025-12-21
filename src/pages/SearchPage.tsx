@@ -14,6 +14,9 @@ import {
   IconButton,
   Tabs,
   Tab,
+  Menu,
+  MenuItem,
+  ListItemIcon,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
@@ -22,6 +25,11 @@ import AlbumIcon from '@mui/icons-material/Album';
 import ClearIcon from '@mui/icons-material/Clear';
 import HistoryIcon from '@mui/icons-material/History';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import QueueMusicIcon from '@mui/icons-material/QueueMusic';
+import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import FavoriteIcon from '@mui/icons-material/Favorite';
 import { saavnApi } from '../services/saavnApi';
 import { Song } from '../types/api';
 
@@ -29,9 +37,12 @@ interface SearchPageProps {
   onSongSelect: (song: Song) => void;
   onPlaylistSelect: (playlistId: string, playlistName: string, playlistImage: string) => void;
   onAlbumSelect: (albumId: string, albumName: string, albumImage: string) => void;
+  onAddToQueue?: (song: Song) => void;
+  onPlayNext?: (song: Song) => void;
+  onShowSnackbar?: (message: string) => void;
 }
 
-const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect, onAlbumSelect }) => {
+const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect, onAlbumSelect, onAddToQueue, onPlayNext, onShowSnackbar }) => {
   // Use state that persists in sessionStorage
   const [searchQuery, setSearchQuery] = useState(() => {
     return sessionStorage.getItem('searchQuery') || '';
@@ -54,6 +65,8 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
     return sessionStorage.getItem('hasSearched') === 'true';
   });
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedSong, setSelectedSong] = useState<any>(null);
 
   // Save search state to sessionStorage whenever it changes
   useEffect(() => {
@@ -244,8 +257,63 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, song: any) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+    setSelectedSong(song);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedSong(null);
+  };
+
+  const handlePlayNow = () => {
+    if (selectedSong) {
+      onSongSelect(selectedSong);
+    }
+    handleMenuClose();
+  };
+
+  const handlePlayNext = () => {
+    if (selectedSong && onPlayNext) {
+      onPlayNext(selectedSong);
+    }
+    handleMenuClose();
+  };
+
+  const handleAddToQueue = () => {
+    if (selectedSong && onAddToQueue) {
+      onAddToQueue(selectedSong);
+    }
+    handleMenuClose();
+  };
+
+  const handleAddToFavourites = () => {
+    if (selectedSong) {
+      const favourites = JSON.parse(localStorage.getItem('favouriteSongs') || '[]');
+      const exists = favourites.some((fav: any) => fav.id === selectedSong.id);
+      
+      if (!exists) {
+        const newFav = {
+          id: selectedSong.id,
+          name: selectedSong.name,
+          artist: getArtistNames(selectedSong),
+          albumArt: getHighQualityImage(selectedSong.image),
+          addedAt: Date.now(),
+        };
+        favourites.push(newFav);
+        localStorage.setItem('favouriteSongs', JSON.stringify(favourites));
+        if (onShowSnackbar) {
+          onShowSnackbar('Added to favourites ❤️');
+        }
+      }
+    }
+    handleMenuClose();
+  };
+
   return (
-    <Box sx={{ pb: 16, px: 2, pt: 1 }}>
+    <Box sx={{ pb: 10, px: 2 }}>
       {/* Search Input */}
       <TextField
         fullWidth
@@ -423,7 +491,6 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                   {songs.map((song) => (
                     <ListItem
                       key={song.id}
-                      onClick={() => onSongSelect(song)}
                       sx={{
                         cursor: 'pointer',
                         borderRadius: 1,
@@ -434,8 +501,20 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                           bgcolor: 'action.hover',
                         },
                       }}
+                      secondaryAction={
+                        <IconButton
+                          edge="end"
+                          onClick={(e) => handleMenuOpen(e, song)}
+                          sx={{ color: 'text.secondary' }}
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      }
                     >
-                      <ListItemAvatar sx={{ minWidth: 72 }}>
+                      <ListItemAvatar 
+                        sx={{ minWidth: 72, cursor: 'pointer' }}
+                        onClick={() => onSongSelect(song)}
+                      >
                         <Avatar
                           src={getHighQualityImage(song.image)}
                           variant="rounded"
@@ -445,6 +524,14 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                         </Avatar>
                       </ListItemAvatar>
                       <ListItemText
+                        onClick={() => onSongSelect(song)}
+                        sx={{ 
+                          cursor: 'pointer',
+                          mr: 1.5,
+                          pr: 0.5,
+                          minWidth: 0,
+                          flex: 1
+                        }}
                         primary={
                           <Typography
                             sx={{
@@ -703,6 +790,46 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
           </Typography>
         </Box>
       )}
+
+      {/* Context Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem onClick={handlePlayNow}>
+          <ListItemIcon>
+            <PlayArrowIcon fontSize="small" />
+          </ListItemIcon>
+          <Typography variant="body2">Play Now</Typography>
+        </MenuItem>
+        <MenuItem onClick={handlePlayNext}>
+          <ListItemIcon>
+            <QueueMusicIcon fontSize="small" />
+          </ListItemIcon>
+          <Typography variant="body2">Play Next</Typography>
+        </MenuItem>
+        <MenuItem onClick={handleAddToQueue}>
+          <ListItemIcon>
+            <PlaylistAddIcon fontSize="small" />
+          </ListItemIcon>
+          <Typography variant="body2">Add to Queue</Typography>
+        </MenuItem>
+        <MenuItem onClick={handleAddToFavourites}>
+          <ListItemIcon>
+            <FavoriteIcon fontSize="small" />
+          </ListItemIcon>
+          <Typography variant="body2">Add to Favourites</Typography>
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };

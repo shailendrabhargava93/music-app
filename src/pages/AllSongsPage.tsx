@@ -102,7 +102,7 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
   return (
     <Box 
       sx={{ 
-        pb: 25, 
+        pb: 10, 
         minHeight: '100vh',
         position: 'relative',
         overflow: 'auto'
@@ -116,8 +116,7 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
           gap: 1,
           px: 2,
           pt: 1,
-          pb: 1.5,
-          mb: 2,
+          mb: 1,
         }}
       >
         <IconButton

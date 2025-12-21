@@ -225,7 +225,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
   };
 
   return (
-    <Box sx={{ pb: 16, minHeight: '100vh' }}>
+    <Box sx={{ pb: 10, minHeight: '100vh', pt: 1 }}>
       {/* Header with Back Button */}
       <Box
         sx={{
@@ -233,9 +233,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
           alignItems: 'center',
           gap: 1,
           px: 2,
-          pt: 1,
-          pb: 1.5,
-          mb: 2,
+          mb: 1,
         }}
       >
         <IconButton
@@ -249,7 +247,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
         >
           <ArrowBackIcon />
         </IconButton>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, fontSize: '1.1rem' }}>
+        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
           Playlist
         </Typography>
       </Box>
@@ -261,8 +259,8 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
           flexDirection: 'column',
           alignItems: 'center',
           px: 2,
-          pb: 1,
-          mb: 1.5,
+          pb: 0.5,
+          mb: 1,
           background: (theme) =>
             theme.palette.mode === 'dark'
               ? 'linear-gradient(180deg, rgba(0, 188, 212, 0.1) 0%, transparent 100%)'
@@ -275,30 +273,30 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
           sx={{
             width: 160,
             height: 160,
-            mb: 2,
+            mb: 1.5,
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
           }}
         >
           <PlayArrowIcon sx={{ fontSize: 80 }} />
         </Avatar>
         <Typography
-          variant="h5"
+          variant="h6"
           sx={{
             color: 'text.primary',
             fontWeight: 'bold',
             textAlign: 'center',
-            mb: 1,
-            fontSize: '1.25rem',
+            mb: 0.5,
+            fontSize: '1.1rem',
             px: 2,
             lineHeight: 1.2,
           }}
         >
           {decodeHtmlEntities(playlistName)}
         </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2, fontSize: '0.9rem' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5, fontSize: '0.85rem' }}>
           {songs.length} songs
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mb: 0.5 }}>
           {songs.length > 0 && (
             <IconButton
               onClick={() => {
@@ -309,14 +307,14 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
               sx={{
                 bgcolor: 'primary.main',
                 color: 'white',
-                width: 56,
-                height: 56,
+                width: 48,
+                height: 48,
                 '&:hover': {
                   bgcolor: 'primary.dark',
                 },
               }}
             >
-              <PlayArrowIcon sx={{ fontSize: 32 }} />
+              <PlayArrowIcon sx={{ fontSize: 28 }} />
             </IconButton>
           )}
           <IconButton
@@ -324,8 +322,8 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
             sx={{
               bgcolor: isFavourite ? 'rgba(255, 82, 82, 0.1)' : 'action.hover',
               color: isFavourite ? 'error.main' : 'text.secondary',
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               '&:hover': {
                 bgcolor: isFavourite ? 'rgba(255, 82, 82, 0.2)' : 'action.selected',
               },
@@ -391,10 +389,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
                   py: 0.5,
                   mb: 0.5,
                   '&:hover': {
-                    bgcolor: (theme) =>
-                      theme.palette.mode === 'light'
-                        ? 'rgba(0, 188, 212, 0.08)'
-                        : 'rgba(255, 255, 255, 0.05)',
+                    bgcolor: 'action.hover',
                   },
                 }}
                 secondaryAction={
@@ -421,7 +416,13 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
                 </ListItemAvatar>
                 <ListItemText
                   onClick={() => onSongSelect(song)}
-                  sx={{ cursor: 'pointer', mr: 1, pr: 1 }}
+                  sx={{ 
+                    cursor: 'pointer',
+                    mr: 1.5,
+                    pr: 0.5,
+                    minWidth: 0,
+                    flex: 1
+                  }}
                   primary={
                     <Typography
                       sx={{
@@ -430,14 +431,13 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
-                        pr: 1,
                       }}
                     >
                       {decodeHtmlEntities(song.name)}
                     </Typography>
                   }
                   secondary={
-                    <Box sx={{ pr: 1 }}>
+                    <Box>
                       <Typography
                         variant="body2"
                         sx={{

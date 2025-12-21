@@ -193,8 +193,8 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
       sx={{ 
         minHeight: '100vh',
         bgcolor: 'background.default',
-        pb: 16,
-        pt: 1.5
+        pb: 10,
+        pt: 1
       }}
     >
       <Container maxWidth="md">
@@ -278,10 +278,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
                       px: 1,
                       py: 0.5,
                       '&:hover': {
-                        bgcolor: (theme) =>
-                          theme.palette.mode === 'light'
-                            ? 'rgba(0, 188, 212, 0.08)'
-                            : 'rgba(255, 255, 255, 0.05)',
+                        bgcolor: 'action.hover',
                       },
                     }}
                     secondaryAction={
@@ -341,7 +338,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
                           >
                             {decodeHtmlEntities(song.artist)}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mt: 0.25 }}>
+                          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                             Added {formatDate(song.addedAt)}
                           </Typography>
                         </Box>
