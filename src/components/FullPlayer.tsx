@@ -6,9 +6,6 @@ import {
   Slider,
   Drawer,
   Avatar,
-  Dialog,
-  DialogTitle,
-  DialogContent,
   Divider,
   List,
   ListItem,
@@ -540,29 +537,30 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
         }}
       />
 
-      {/* Song Info Dialog */}
-      <Dialog
+      {/* Song Info Drawer */}
+      <Drawer
         open={infoDialogOpen}
         onClose={() => setInfoDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
+        anchor="bottom"
         PaperProps={{
           sx: {
             bgcolor: 'background.paper',
-            borderRadius: 2,
+            borderRadius: '16px 16px 0 0',
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <Box sx={{ 
           bgcolor: 'background.default',
           color: 'text.primary',
           fontWeight: 'bold',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          pr: 1
+          p: 2,
+          borderBottom: '1px solid',
+          borderColor: 'divider'
         }}>
-          Song Information
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Details</Typography>
           <IconButton
             onClick={() => setInfoDialogOpen(false)}
             size="small"
@@ -571,10 +569,10 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
           >
             <CloseIcon />
           </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ bgcolor: 'background.paper', pt: 2 }}>
+        </Box>
+        <Box sx={{ bgcolor: 'background.paper', p: 2, maxHeight: '60vh', overflowY: 'auto' }}>
           <List sx={{ p: 0 }}>
-            <ListItem sx={{ px: 0, py: 1.5 }}>
+            <ListItem sx={{ px: 0, py: 0.5 }}>
               <ListItemText
                 primary={
                   <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -582,14 +580,14 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
                   </Typography>
                 }
                 secondary={
-                  <Typography variant="body1" sx={{ color: 'text.primary', mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.3 }}>
                     {decodeHtmlEntities(songTitle)}
                   </Typography>
                 }
               />
             </ListItem>
-            <Divider />
-            <ListItem sx={{ px: 0, py: 1.5 }}>
+            <Divider sx={{ my: 0.3 }} />
+            <ListItem sx={{ px: 0, py: 0.5 }}>
               <ListItemText
                 primary={
                   <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -597,14 +595,14 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
                   </Typography>
                 }
                 secondary={
-                  <Typography variant="body1" sx={{ color: 'text.primary', mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.3 }}>
                     {decodeHtmlEntities(artist)}
                   </Typography>
                 }
               />
             </ListItem>
-            <Divider />
-            <ListItem sx={{ px: 0, py: 1.5 }}>
+            <Divider sx={{ my: 0.3 }} />
+            <ListItem sx={{ px: 0, py: 0.5 }}>
               <ListItemText
                 primary={
                   <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -612,14 +610,14 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
                   </Typography>
                 }
                 secondary={
-                  <Typography variant="body1" sx={{ color: 'text.primary', mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.3 }}>
                     {albumName ? decodeHtmlEntities(albumName) : 'Unknown Album'}
                   </Typography>
                 }
               />
             </ListItem>
-            <Divider />
-            <ListItem sx={{ px: 0, py: 1.5 }}>
+            <Divider sx={{ my: 0.3 }} />
+            <ListItem sx={{ px: 0, py: 0.5 }}>
               <ListItemText
                 primary={
                   <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -627,14 +625,14 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
                   </Typography>
                 }
                 secondary={
-                  <Typography variant="body1" sx={{ color: 'text.primary', mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.3 }}>
                     {label || 'Unknown Label'}
                   </Typography>
                 }
               />
             </ListItem>
-            <Divider />
-            <ListItem sx={{ px: 0, py: 1.5 }}>
+            <Divider sx={{ my: 0.3 }} />
+            <ListItem sx={{ px: 0, py: 0.5 }}>
               <ListItemText
                 primary={
                   <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -642,14 +640,14 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
                   </Typography>
                 }
                 secondary={
-                  <Typography variant="body1" sx={{ color: 'text.primary', mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.3 }}>
                     {year || 'Unknown Year'}
                   </Typography>
                 }
               />
             </ListItem>
-            <Divider />
-            <ListItem sx={{ px: 0, py: 1.5 }}>
+            <Divider sx={{ my: 0.3 }} />
+            <ListItem sx={{ px: 0, py: 0.5 }}>
               <ListItemText
                 primary={
                   <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -657,14 +655,14 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
                   </Typography>
                 }
                 secondary={
-                  <Typography variant="body1" sx={{ color: 'text.primary', mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.3 }}>
                     {language || 'Unknown Language'}
                   </Typography>
                 }
               />
             </ListItem>
-            <Divider />
-            <ListItem sx={{ px: 0, py: 1.5 }}>
+            <Divider sx={{ my: 0.3 }} />
+            <ListItem sx={{ px: 0, py: 0.5 }}>
               <ListItemText
                 primary={
                   <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -672,15 +670,15 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
                   </Typography>
                 }
                 secondary={
-                  <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.3 }}>
                     {copyright || 'Copyright information not available'}
                   </Typography>
                 }
               />
             </ListItem>
           </List>
-        </DialogContent>
-      </Dialog>
+        </Box>
+      </Drawer>
 
       <Snackbar
         open={snackbarOpen}

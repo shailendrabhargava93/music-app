@@ -99,10 +99,11 @@ function App() {
     setShowWelcome(false);
   };
 
-  // Load chart songs once on app mount
+  // Load chart songs only when welcome screen is dismissed AND home page is accessed
   useEffect(() => {
     const loadChartSongs = async () => {
-      if (chartSongsLoaded) return; // Don't reload if already loaded
+      // Only load if welcome screen is dismissed and home tab is active
+      if (showWelcome || activeTab !== 'home' || chartSongsLoaded) return;
 
       try {
         setChartSongsLoading(true);
@@ -171,7 +172,7 @@ function App() {
     };
 
     loadChartSongs();
-  }, [chartSongsLoaded]);
+  }, [showWelcome, activeTab, chartSongsLoaded]);
 
   const searchSongOnSaavn = async (item: SoundChartsItem): Promise<Song | undefined> => {
     try {
@@ -216,9 +217,8 @@ function App() {
         return (longer.length - editDistance(longer, shorter)) / longer.length;
       };
       
-      // First attempt: Search with song name + artist name
-      const query = `${item.song.name} ${item.song.creditName}`;
-      let searchResults = await saavnApi.searchSongs(query, 10);
+      // First attempt: Search with just song title
+      let searchResults = await saavnApi.searchSongs(item.song.name, 15);
 
       if (searchResults?.data?.results && searchResults.data.results.length > 0) {
         // Find best match by comparing song names and artists
@@ -239,9 +239,56 @@ function App() {
           // Combined score: 70% song name, 30% artist name
           const totalScore = (songNameScore * 0.7) + (artistScore * 0.3);
           
-          // Only consider matches with reasonable similarity
-          if (totalScore > bestScore && songNameScore > 0.6) {
+          // Only consider matches with reasonable similarity (song name > 0.5)
+          if (totalScore > bestScore && songNameScore > 0.5) {
             bestScore = totalScore;
+            bestMatch = result;
+          }
+        }
+        
+        if (bestMatch) {
+          return {
+            id: bestMatch.id,
+            name: bestMatch.name,
+            album: bestMatch.album ? {
+              id: bestMatch.album.id || '',
+              name: bestMatch.album.name || '',
+              url: bestMatch.album.url || '',
+            } : undefined,
+            year: bestMatch.year || '',
+            releaseDate: bestMatch.releaseDate || '',
+            duration: bestMatch.duration || 0,
+            label: bestMatch.label || '',
+            primaryArtists: bestMatch.artists?.primary?.map((a: any) => a.name).join(', ') || item.song.creditName,
+            primaryArtistsId: bestMatch.artists?.primary?.map((a: any) => a.id).join(',') || '',
+            featuredArtists: bestMatch.artists?.featured?.map((a: any) => a.name).join(', ') || '',
+            featuredArtistsId: bestMatch.artists?.featured?.map((a: any) => a.id).join(',') || '',
+            explicitContent: bestMatch.explicitContent || 0,
+            playCount: bestMatch.playCount || 0,
+            language: bestMatch.language || '',
+            hasLyrics: bestMatch.hasLyrics || false,
+            url: bestMatch.url || '',
+            copyright: bestMatch.copyright || '',
+            image: Array.isArray(bestMatch.image) ? bestMatch.image : [],
+            downloadUrl: Array.isArray(bestMatch.downloadUrl) ? bestMatch.downloadUrl : [],
+          };
+        }
+      }
+      
+      // Fallback: Try with artist + song name
+      const fallbackQuery = `${item.song.name} ${item.song.creditName}`;
+      searchResults = await saavnApi.searchSongs(fallbackQuery, 10);
+      
+      if (searchResults?.data?.results && searchResults.data.results.length > 0) {
+        let bestMatch = null;
+        let bestScore = 0;
+        
+        for (const result of searchResults.data.results) {
+          const resultSongName = normalizeText(result.name);
+          const songNameScore = similarityScore(targetSongName, resultSongName);
+          
+          if (songNameScore > bestScore && songNameScore > 0.5) {
+            bestScore = songNameScore;
             bestMatch = result;
           }
         }
@@ -582,6 +629,8 @@ function App() {
           chartSongs={chartSongs}
           onSongSelect={handleSongSelect}
           onBack={handleBackFromAllCharts}
+          onAddToQueue={handleAddToQueue}
+          onPlayNext={handlePlayNext}
         />
       );
     }
@@ -618,6 +667,8 @@ function App() {
             onPlaylistSelect={handlePlaylistSelect}
             onRecentlyPlayedClick={handleRecentlyPlayedClick}
             onSettingsClick={handleSettingsClick}
+            onPlayNext={handlePlayNext}
+            onAddToQueue={handleAddToQueue}
           />
         );
       case 'explore':

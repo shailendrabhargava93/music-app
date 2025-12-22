@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Box, Typography, CircularProgress, IconButton, Skeleton, Button } from '@mui/material';
+import { Box, Typography, CircularProgress, IconButton, Skeleton, Button, Menu, MenuItem, ListItemIcon, TextField } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import QueueMusicIcon from '@mui/icons-material/QueueMusic';
+import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import FavoriteIcon from '@mui/icons-material/Favorite';
 import { Song } from '../types/api';
 import { SoundChartsItem } from '../services/soundChartsApi';
 
@@ -8,6 +14,8 @@ interface AllSongsPageProps {
   onSongSelect: (song: Song) => void;
   chartSongs: ChartSongWithSaavn[];
   onBack: () => void;
+  onAddToQueue?: (song: Song) => void;
+  onPlayNext?: (song: Song) => void;
 }
 
 interface ChartSongWithSaavn extends SoundChartsItem {
@@ -15,15 +23,32 @@ interface ChartSongWithSaavn extends SoundChartsItem {
   isSearching?: boolean;
 }
 
-const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, onBack }) => {
+const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, onBack, onAddToQueue, onPlayNext }) => {
   const [displayedSongs, setDisplayedSongs] = useState<ChartSongWithSaavn[]>([]);
   const [displayCount, setDisplayCount] = useState(20);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedSong, setSelectedSong] = useState<ChartSongWithSaavn | null>(null);
+  const [favouriteSongs, setFavouriteSongs] = useState<string[]>([]);
+  const [loadMoreCount, setLoadMoreCount] = useState(20);
   const observerTarget = useRef<HTMLDivElement>(null);
 
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, []);
+
+  // Load favourite songs
+  useEffect(() => {
+    const saved = localStorage.getItem('favouriteSongs');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setFavouriteSongs(parsed.map((song: any) => song.id));
+      } catch (e) {
+        setFavouriteSongs([]);
+      }
+    }
   }, []);
 
   // Update displayed songs when displayCount changes
@@ -38,7 +63,7 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
   const loadMoreSongs = () => {
     if (displayCount < chartSongs.length && !isLoadingMore) {
       setIsLoadingMore(true);
-      setDisplayCount(prev => Math.min(prev + 20, chartSongs.length));
+      setDisplayCount(prev => Math.min(prev + loadMoreCount, chartSongs.length));
     }
   };
 
@@ -79,6 +104,68 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
     if (song.saavnData) {
       onSongSelect(song.saavnData);
     }
+  };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, song: ChartSongWithSaavn) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+    setSelectedSong(song);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedSong(null);
+  };
+
+  const handlePlayNext = () => {
+    if (selectedSong?.saavnData && onPlayNext) {
+      onPlayNext(selectedSong.saavnData);
+    }
+    handleMenuClose();
+  };
+
+  const handleAddToQueue = () => {
+    if (selectedSong?.saavnData && onAddToQueue) {
+      onAddToQueue(selectedSong.saavnData);
+    }
+    handleMenuClose();
+  };
+
+  const handleAddToFavourites = () => {
+    if (!selectedSong?.saavnData) return;
+
+    const saved = localStorage.getItem('favouriteSongs');
+    let favourites = [];
+    
+    try {
+      favourites = saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      favourites = [];
+    }
+
+    const isFavourite = favourites.some((song: any) => song.id === selectedSong.saavnData!.id);
+
+    if (isFavourite) {
+      // Remove from favourites
+      favourites = favourites.filter((song: any) => song.id !== selectedSong.saavnData!.id);
+      setFavouriteSongs(prev => prev.filter(id => id !== selectedSong.saavnData!.id));
+    } else {
+      // Add to favourites
+      const newFavourite = {
+        id: selectedSong.saavnData.id,
+        name: selectedSong.saavnData.name,
+        artist: selectedSong.saavnData.primaryArtists,
+        albumArt: selectedSong.saavnData.image && selectedSong.saavnData.image.length > 0 
+          ? selectedSong.saavnData.image[0].link || ''
+          : '',
+        addedAt: Date.now(),
+      };
+      favourites.push(newFavourite);
+      setFavouriteSongs(prev => [...prev, selectedSong.saavnData!.id]);
+    }
+
+    localStorage.setItem('favouriteSongs', JSON.stringify(favourites));
+    handleMenuClose();
   };
 
   const getImageUrl = (imageArray: any[]): string => {
@@ -265,6 +352,16 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
                     Not available
                   </Typography>
                 )}
+
+                {item.saavnData && (
+                  <IconButton
+                    onClick={(e) => handleMenuOpen(e, item)}
+                    size="small"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    <MoreVertIcon fontSize="small" />
+                  </IconButton>
+                )}
               </Box>
             ))}
 
@@ -320,6 +417,72 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
           </Box>
         )}
       </Box>
+
+      {/* Context Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem onClick={() => selectedSong?.saavnData && onSongSelect(selectedSong.saavnData)}>
+          <ListItemIcon>
+            <PlayArrowIcon fontSize="small" />
+          </ListItemIcon>
+          Play
+        </MenuItem>
+        {onPlayNext && (
+          <MenuItem onClick={handlePlayNext}>
+            <ListItemIcon>
+              <PlaylistAddIcon fontSize="small" />
+            </ListItemIcon>
+            Play Next
+          </MenuItem>
+        )}
+        {onAddToQueue && (
+          <MenuItem onClick={handleAddToQueue}>
+            <ListItemIcon>
+              <QueueMusicIcon fontSize="small" />
+            </ListItemIcon>
+            Add to Queue
+          </MenuItem>
+        )}
+        <MenuItem onClick={handleAddToFavourites}>
+          <ListItemIcon>
+            {selectedSong?.saavnData && favouriteSongs.includes(selectedSong.saavnData.id) ? (
+              <FavoriteIcon fontSize="small" />
+            ) : (
+              <FavoriteBorderIcon fontSize="small" />
+            )}
+          </ListItemIcon>
+          {selectedSong?.saavnData && favouriteSongs.includes(selectedSong.saavnData.id) ? 'Remove from Favorites' : 'Add to Favorites'}
+        </MenuItem>
+      </Menu>
+
+      {/* Load more count input dialog - shown below the button */}
+      {displayCount < chartSongs.length && (
+        <Box sx={{ px: 2, pb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+          <TextField
+            type="number"
+            size="small"
+            label="Load songs at a time"
+            value={loadMoreCount}
+            onChange={(e) => setLoadMoreCount(Math.max(10, parseInt(e.target.value) || 20))}
+            inputProps={{ min: 10, max: 100 }}
+            sx={{ width: 150 }}
+          />
+          <Typography variant="caption" color="text.secondary">
+            (10-100)
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };

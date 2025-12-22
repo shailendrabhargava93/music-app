@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, CircularProgress, Avatar, Skeleton } from '@mui/material';
+import { Box, Typography, CircularProgress, Avatar, Skeleton, IconButton, Menu, MenuItem, ListItemIcon } from '@mui/material';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import Header from '../components/Header';
 import { Song } from '../types/api';
 import { SoundChartsItem } from '../services/soundChartsApi';
@@ -16,6 +22,8 @@ interface HomePageProps {
   onPlaylistSelect: (playlistId: string, playlistName: string, playlistImage: string) => void;
   onRecentlyPlayedClick?: () => void;
   onSettingsClick?: () => void;
+  onAddToQueue?: (song: Song) => void;
+  onPlayNext?: (song: Song) => void;
 }
 
 interface ChartSongWithSaavn extends SoundChartsItem {
@@ -23,7 +31,7 @@ interface ChartSongWithSaavn extends SoundChartsItem {
   isSearching?: boolean;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSongsLoading, onViewAllCharts, onAlbumSelect, onPlaylistSelect, onRecentlyPlayedClick, onSettingsClick }) => {
+const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSongsLoading, onViewAllCharts, onAlbumSelect, onPlaylistSelect, onRecentlyPlayedClick, onSettingsClick, onAddToQueue, onPlayNext }) => {
   const [displayedSongs, setDisplayedSongs] = useState<ChartSongWithSaavn[]>([]);
   const [latestAlbums, setLatestAlbums] = useState<any[]>([]);
   const [albumsLoading, setAlbumsLoading] = useState(true);
@@ -31,6 +39,9 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
   const [trendingPlaylists, setTrendingPlaylists] = useState<any[]>([]);
   const [playlistsLoading, setPlaylistsLoading] = useState(true);
   const [playlistsFetched, setPlaylistsFetched] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedSong, setSelectedSong] = useState<ChartSongWithSaavn | null>(null);
+  const [favouriteSongs, setFavouriteSongs] = useState<string[]>([]);
 
   // Fetch latest albums only once
   useEffect(() => {
@@ -123,10 +134,85 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
     }
   }, [chartSongs]);
 
+  // Load favourite songs
+  useEffect(() => {
+    const saved = localStorage.getItem('favouriteSongs');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setFavouriteSongs(parsed.map((song: any) => song.id));
+      } catch (e) {
+        setFavouriteSongs([]);
+      }
+    }
+  }, []);
+
   const handleSongClick = (song: ChartSongWithSaavn) => {
     if (song.saavnData) {
       onSongSelect(song.saavnData);
     }
+  };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, song: ChartSongWithSaavn) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+    setSelectedSong(song);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedSong(null);
+  };
+
+  const handlePlayNext = () => {
+    if (selectedSong?.saavnData && onPlayNext) {
+      onPlayNext(selectedSong.saavnData);
+    }
+    handleMenuClose();
+  };
+
+  const handleAddToQueue = () => {
+    if (selectedSong?.saavnData && onAddToQueue) {
+      onAddToQueue(selectedSong.saavnData);
+    }
+    handleMenuClose();
+  };
+
+  const handleAddToFavourites = () => {
+    if (!selectedSong?.saavnData) return;
+
+    const saved = localStorage.getItem('favouriteSongs');
+    let favourites = [];
+    
+    try {
+      favourites = saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      favourites = [];
+    }
+
+    const isFavourite = favourites.some((song: any) => song.id === selectedSong.saavnData!.id);
+
+    if (isFavourite) {
+      // Remove from favourites
+      favourites = favourites.filter((song: any) => song.id !== selectedSong.saavnData!.id);
+      setFavouriteSongs(prev => prev.filter(id => id !== selectedSong.saavnData!.id));
+    } else {
+      // Add to favourites
+      const newFavourite = {
+        id: selectedSong.saavnData.id,
+        name: selectedSong.saavnData.name,
+        artist: selectedSong.saavnData.primaryArtists,
+        albumArt: selectedSong.saavnData.image && selectedSong.saavnData.image.length > 0 
+          ? selectedSong.saavnData.image[0].link || ''
+          : '',
+        addedAt: Date.now(),
+      };
+      favourites.push(newFavourite);
+      setFavouriteSongs(prev => [...prev, selectedSong.saavnData!.id]);
+    }
+
+    localStorage.setItem('favouriteSongs', JSON.stringify(favourites));
+    handleMenuClose();
   };
 
   const getImageUrl = (imageArray: any[]): string => {
@@ -158,7 +244,7 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
   };
 
   return (
-    <Box sx={{ pb: 10, pt: 0 }}>
+    <Box sx={{ pb: 14, pt: 0 }}>
       <Header 
         onRecentlyPlayedClick={onRecentlyPlayedClick}
         onSettingsClick={onSettingsClick}
@@ -443,6 +529,16 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
                   </Typography>
                 </Box>
 
+                {item.saavnData && (
+                  <IconButton
+                    onClick={(e) => handleMenuOpen(e, item)}
+                    size="small"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    <MoreVertIcon fontSize="small" />
+                  </IconButton>
+                )}
+
                 {item.isSearching && (
                   <Typography
                     variant="caption"
@@ -466,6 +562,54 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
           </Box>
         )}
       </Box>
+
+      {/* Context Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem onClick={() => selectedSong?.saavnData && onSongSelect(selectedSong.saavnData)}>
+          <ListItemIcon>
+            <PlayArrowIcon fontSize="small" />
+          </ListItemIcon>
+          Play
+        </MenuItem>
+        {onPlayNext && (
+          <MenuItem onClick={handlePlayNext}>
+            <ListItemIcon>
+              <PlaylistAddIcon fontSize="small" />
+            </ListItemIcon>
+            Play Next
+          </MenuItem>
+        )}
+        {onAddToQueue && (
+          <MenuItem onClick={handleAddToQueue}>
+            <ListItemIcon>
+              <QueueMusicIcon fontSize="small" />
+            </ListItemIcon>
+            Add to Queue
+          </MenuItem>
+        )}
+        <MenuItem onClick={handleAddToFavourites}>
+          <ListItemIcon>
+            {selectedSong?.saavnData && favouriteSongs.includes(selectedSong.saavnData.id) ? (
+              <FavoriteIcon fontSize="small" />
+            ) : (
+              <FavoriteBorderIcon fontSize="small" />
+            )}
+          </ListItemIcon>
+          {selectedSong?.saavnData && favouriteSongs.includes(selectedSong.saavnData.id) ? 'Remove from Favorites' : 'Add to Favorites'}
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };
