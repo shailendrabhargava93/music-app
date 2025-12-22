@@ -99,6 +99,24 @@ function App() {
     setShowWelcome(false);
   };
 
+  // Handle PWA shortcuts
+  useEffect(() => {
+    const handleShortcut = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const shortcut = urlParams.get('shortcut');
+      
+      if (shortcut === 'search') {
+        setActiveTab('search');
+        setShowWelcome(false);
+      } else if (shortcut === 'favorites') {
+        setActiveTab('favourites');
+        setShowWelcome(false);
+      }
+    };
+
+    handleShortcut();
+  }, []);
+
   // Load chart songs only when welcome screen is dismissed AND home page is accessed
   useEffect(() => {
     const loadChartSongs = async () => {
@@ -683,6 +701,12 @@ function App() {
             onSongSelect={handleSongSelect}
             onPlaylistSelect={handlePlaylistSelect}
             onAlbumSelect={handleAlbumSelect}
+            onPlayNext={handlePlayNext}
+            onAddToQueue={handleAddToQueue}
+            onShowSnackbar={(msg) => {
+              setSnackbarMessage(msg);
+              setSnackbarOpen(true);
+            }}
           />
         );
       case 'settings':

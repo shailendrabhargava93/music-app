@@ -8,7 +8,6 @@ import {
   ListItemText,
   Avatar,
   IconButton,
-  Container,
   Tabs,
   Tab,
   Menu,
@@ -197,8 +196,8 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
         pt: 1
       }}
     >
-      <Container maxWidth="md">
-        <Box sx={{ px: 2, mb: 1.5 }}>
+      <Box sx={{ px: 2 }}>
+        <Box sx={{ mb: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <FavoriteIcon sx={{ color: 'primary.main', fontSize: 32 }} />
@@ -597,7 +596,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
             <Typography variant="body2">Remove from Library</Typography>
           </MenuItem>
         </Menu>
-      </Container>
+      </Box>
     </Box>
   );
 };
