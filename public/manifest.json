@@ -1,0 +1,92 @@
+{
+    "name": "Wave Music - Stream Your Favorite Songs",
+    "short_name": "Wave Music",
+    "description": "Stream your favorite music with Wave Music App",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+    "orientation": "portrait",
+    "theme_color": "#00BCD4",
+    "background_color": "#1a1a1a",
+    "categories": ["music", "entertainment"],
+    "id": "com.wavemusic.app",
+    "screenshots": [
+      {
+        "src": "/screenshots/screenshot-540.png",
+        "sizes": "540x720",
+        "form_factor": "narrow",
+        "type": "image/png"
+      },
+      {
+        "src": "/screenshots/screenshot-1280.png",
+        "sizes": "1280x720",
+        "form_factor": "wide",
+        "type": "image/png"
+      }
+    ],
+    "icons": [
+      {
+        "src": "/android-launchericon-192-192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "any"
+      },
+      {
+        "src": "/android-launchericon-512-512.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "any"
+      },
+      {
+        "src": "/android-launchericon-192-192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "maskable"
+      },
+      {
+        "src": "/android-launchericon-512-512.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "maskable"
+      }
+    ],
+    "iarc_rating_id": "e84b9618-a2dd-4d03-9067-2d47d7146205",
+    "related_applications": [
+      {
+        "platform": "play",
+        "url": "https://play.google.com/store/apps/details?id=com.wavemusic.app",
+        "id": "com.wavemusic.app"
+      }
+    ],
+    "prefer_related_applications": false,
+    "shortcuts": [
+      {
+        "name": "Search Music",
+        "short_name": "Search",
+        "description": "Search for your favorite songs",
+        "url": "/?shortcut=search",
+        "icons": [
+          {
+            "src": "/android-launchericon-192-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+          }
+        ]
+      },
+      {
+        "name": "Favorites",
+        "short_name": "Favorites",
+        "description": "View your favorite songs",
+        "url": "/?shortcut=favorites",
+        "icons": [
+          {
+            "src": "/android-launchericon-192-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+          }
+        ]
+      }
+    ]
+  }
+  

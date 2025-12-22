@@ -73,7 +73,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         minHeight: '100vh',
         bgcolor: 'background.default',
         pb: 10,
-        pt: 1
+        pt: 0
       }}
     >
       <Container maxWidth="md">

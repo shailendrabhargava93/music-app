@@ -158,7 +158,7 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
   };
 
   return (
-    <Box sx={{ pb: 10, pt: 1 }}>
+    <Box sx={{ pb: 10, pt: 0 }}>
       <Header 
         onRecentlyPlayedClick={onRecentlyPlayedClick}
         onSettingsClick={onSettingsClick}
