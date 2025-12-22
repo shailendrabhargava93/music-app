@@ -29,33 +29,16 @@
   ],
   "icons": [
     {
-      "src": "/android-launchericon-192-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
+      "src": "/wave-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/android-launchericon-512-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/android-launchericon-192-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
+      "src": "/wave-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "maskable"
-    },
-    {
-      "src": "/android-launchericon-512-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/android-launchericon-192-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
     }
   ],
   "iarc_rating_id": "e84b9618-a2dd-4d03-9067-2d47d7146205",
@@ -83,10 +66,9 @@
       "url": "/index.html?shortcut=search",
       "icons": [
         {
-          "src": "/android-launchericon-192-192.png",
-          "sizes": "192x192",
-          "type": "image/png",
-          "purpose": "any"
+          "src": "/wave-logo.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
         }
       ]
     },
@@ -97,12 +79,75 @@
       "url": "/index.html?shortcut=favorites",
       "icons": [
         {
-          "src": "/android-launchericon-192-192.png",
-          "sizes": "192x192",
-          "type": "image/png",
-          "purpose": "any"
+          "src": "/wave-logo.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
         }
       ]
     }
-  ]
+  ],
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "audio/*": [".mp3", ".m4a", ".wav", ".ogg", ".flac", ".aac"]
+      },
+      "icons": [
+        {
+          "src": "/wave-logo.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ],
+      "launch_type": "single-client"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": ["navigate-new", "auto"]
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+wavemusic",
+      "url": "/index.html?protocol=%s"
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "widgets": [
+    {
+      "name": "Now Playing",
+      "short_name": "Playing",
+      "description": "Shows the currently playing song",
+      "tag": "now-playing-widget",
+      "screenshot": [
+        {
+          "src": "/wave-logo.svg",
+          "sizes": "any",
+          "form_factor": "all",
+          "type": "image/svg+xml"
+        }
+      ],
+      "icons": [
+        {
+          "src": "/wave-logo.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ],
+      "data": {
+        "url": "/index.html"
+      }
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }

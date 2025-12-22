@@ -249,6 +249,84 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
     };
   }, [audio]);
 
+  // Setup MediaSession API for lock screen and notification controls
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !open) return;
+
+    // Set metadata for notification/lock screen
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: songTitle,
+        artist: artist,
+        album: albumName,
+        artwork: albumArt ? [
+          { src: albumArt, sizes: '96x96', type: 'image/jpeg' },
+          { src: albumArt, sizes: '128x128', type: 'image/jpeg' },
+          { src: albumArt, sizes: '192x192', type: 'image/jpeg' },
+          { src: albumArt, sizes: '256x256', type: 'image/jpeg' },
+          { src: albumArt, sizes: '384x384', type: 'image/jpeg' },
+          { src: albumArt, sizes: '512x512', type: 'image/jpeg' },
+        ] : [],
+      });
+
+      // Update playback state
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+      // Set up action handlers
+      const handlers = {
+        play: () => {
+          if (onTogglePlay && !isPlaying) {
+            onTogglePlay();
+          }
+        },
+        pause: () => {
+          if (onTogglePlay && isPlaying) {
+            onTogglePlay();
+          }
+        },
+        nexttrack: () => {
+          if (onNextSong) {
+            onNextSong();
+          }
+        },
+        previoustrack: () => {
+          if (onPreviousSong) {
+            onPreviousSong();
+          }
+        },
+      };
+
+      navigator.mediaSession.setActionHandler('play', handlers.play);
+      navigator.mediaSession.setActionHandler('pause', handlers.pause);
+      navigator.mediaSession.setActionHandler('nexttrack', handlers.nexttrack);
+      navigator.mediaSession.setActionHandler('previoustrack', handlers.previoustrack);
+      
+      // Seek action if supported
+      navigator.mediaSession.setActionHandler('seekto', (event: any) => {
+        if (onProgressChange && event?.seekTime !== undefined) {
+          onProgressChange(Math.floor(event.seekTime));
+          audio.currentTime = event.seekTime;
+        }
+      });
+    } catch (error) {
+      // MediaSession API not supported
+      console.debug('MediaSession API not fully supported');
+    }
+
+    // Set position state for seekbar in notification
+    try {
+      if (navigator.mediaSession.setPositionState && duration) {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: 1,
+          position: progress,
+        });
+      }
+    } catch (error) {
+      // Position state not supported
+    }
+  }, [songTitle, artist, albumName, albumArt, isPlaying, onTogglePlay, onNextSong, onPreviousSong, onProgressChange, progress, duration, audio, open]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;

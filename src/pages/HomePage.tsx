@@ -12,6 +12,7 @@ import { SoundChartsItem } from '../services/soundChartsApi';
 import { saavnApi } from '../services/saavnApi';
 import AlbumIcon from '@mui/icons-material/Album';
 import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 interface HomePageProps {
   onSongSelect: (song: Song) => void;
@@ -405,20 +406,19 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
             Trending now
           </Typography>
           {chartSongs.length > 10 && (
-            <Typography
-              variant="body2"
+            <IconButton
               onClick={onViewAllCharts}
+              size="small"
               sx={{
                 color: 'primary.main',
-                cursor: 'pointer',
-                fontWeight: 600,
                 '&:hover': {
-                  textDecoration: 'underline',
+                  bgcolor: 'action.hover',
                 },
               }}
+              aria-label="view all trending songs"
             >
-              View All
-            </Typography>
+              <ArrowForwardIcon />
+            </IconButton>
           )}
         </Box>
 

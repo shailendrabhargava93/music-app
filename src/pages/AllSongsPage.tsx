@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Box, Typography, CircularProgress, IconButton, Skeleton, Button, Menu, MenuItem, ListItemIcon, TextField } from '@mui/material';
+import { Box, Typography, CircularProgress, IconButton, Skeleton, Menu, MenuItem, ListItemIcon, Fab } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -7,6 +7,7 @@ import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FavoriteIcon from '@mui/icons-material/Favorite';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { Song } from '../types/api';
 import { SoundChartsItem } from '../services/soundChartsApi';
 
@@ -26,11 +27,10 @@ interface ChartSongWithSaavn extends SoundChartsItem {
 const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, onBack, onAddToQueue, onPlayNext }) => {
   const [displayedSongs, setDisplayedSongs] = useState<ChartSongWithSaavn[]>([]);
   const [displayCount, setDisplayCount] = useState(20);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedSong, setSelectedSong] = useState<ChartSongWithSaavn | null>(null);
   const [favouriteSongs, setFavouriteSongs] = useState<string[]>([]);
-  const [loadMoreCount, setLoadMoreCount] = useState(20);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
 
   // Scroll to top when component mounts
@@ -55,50 +55,58 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
   useEffect(() => {
     if (chartSongs.length > 0) {
       setDisplayedSongs(chartSongs.slice(0, displayCount));
-      setIsLoadingMore(false);
     }
   }, [chartSongs, displayCount]);
 
-  // Function to load more songs
-  const loadMoreSongs = () => {
-    if (displayCount < chartSongs.length && !isLoadingMore) {
-      setIsLoadingMore(true);
-      setDisplayCount(prev => Math.min(prev + loadMoreCount, chartSongs.length));
-    }
-  };
-
-  // Intersection Observer for infinite scroll
+  // Intersection Observer for infinite scroll - keep it stable
   useEffect(() => {
     const currentTarget = observerTarget.current;
     if (!currentTarget || chartSongs.length === 0) return;
 
-    // Don't set up observer if all songs are already displayed
-    if (displayCount >= chartSongs.length) {
-      return;
-    }
-
     const observer = new IntersectionObserver(
       entries => {
         const entry = entries[0];
-        if (entry.isIntersecting && displayCount < chartSongs.length && !isLoadingMore) {
-          // Load 20 more songs
-          loadMoreSongs();
+        if (entry.isIntersecting) {
+          // Load more songs
+          setDisplayCount(prev => Math.min(prev + 20, chartSongs.length));
         }
       },
       { 
         threshold: 0.1,
-        rootMargin: '200px' // Increased to trigger earlier
+        rootMargin: '200px'
       }
     );
 
     observer.observe(currentTarget);
 
     return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
+      observer.disconnect();
+    };
+  }, [chartSongs.length]);
+
+  // Scroll listener for scroll to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
       }
     };
-  }, [displayCount, chartSongs.length, isLoadingMore]);
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // Function to scroll to top
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  };
 
   const handleSongClick = (song: ChartSongWithSaavn) => {
     if (song.saavnData) {
@@ -364,7 +372,6 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
                 )}
               </Box>
             ))}
-
             {/* Loading indicator and observer target */}
             {displayCount < chartSongs.length && (
               <Box
@@ -380,22 +387,7 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
                 }}
               >
                 <Box ref={observerTarget} sx={{ height: 20, width: '100%' }} />
-                {isLoadingMore && <CircularProgress size={32} sx={{ color: 'primary.main' }} />}
-                <Button
-                  variant="outlined"
-                  onClick={loadMoreSongs}
-                  disabled={isLoadingMore}
-                  sx={{
-                    borderColor: 'primary.main',
-                    color: 'primary.main',
-                    '&:hover': {
-                      borderColor: 'primary.dark',
-                      backgroundColor: 'rgba(0, 188, 212, 0.08)',
-                    },
-                  }}
-                >
-                  {isLoadingMore ? 'Loading...' : `Load More (${chartSongs.length - displayCount} remaining)`}
-                </Button>
+                <CircularProgress size={32} sx={{ color: 'primary.main' }} />
               </Box>
             )}
             
@@ -466,22 +458,21 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
         </MenuItem>
       </Menu>
 
-      {/* Load more count input dialog - shown below the button */}
-      {displayCount < chartSongs.length && (
-        <Box sx={{ px: 2, pb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
-          <TextField
-            type="number"
-            size="small"
-            label="Load songs at a time"
-            value={loadMoreCount}
-            onChange={(e) => setLoadMoreCount(Math.max(10, parseInt(e.target.value) || 20))}
-            inputProps={{ min: 10, max: 100 }}
-            sx={{ width: 150 }}
-          />
-          <Typography variant="caption" color="text.secondary">
-            (10-100)
-          </Typography>
-        </Box>
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <Fab
+          color="primary"
+          aria-label="scroll to top"
+          onClick={scrollToTop}
+          sx={{
+            position: 'fixed',
+            bottom: 80,
+            right: 16,
+            zIndex: 1000,
+          }}
+        >
+          <KeyboardArrowUpIcon sx={{ color: theme => theme.palette.mode === 'dark' ? '#fff' : '#000' }} />
+        </Fab>
       )}
     </Box>
   );

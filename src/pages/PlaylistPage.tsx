@@ -12,6 +12,7 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  Fab,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
@@ -21,6 +22,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { saavnApi } from '../services/saavnApi';
 
 interface PlaylistPageProps {
@@ -52,6 +54,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
   const [isFavourite, setIsFavourite] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedSong, setSelectedSong] = useState<any>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Check if playlist/album is in favourites
   useEffect(() => {
@@ -198,6 +201,30 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
 
     fetchPlaylist();
   }, [playlistId, type]);
+
+  // Scroll listener for scroll to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // Function to scroll to top
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  };
 
   const getHighQualityImage = (images: Array<{ quality: string; url: string }>) => {
     if (!images || images.length === 0) return '';
@@ -521,6 +548,23 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
             No songs in this playlist
           </Typography>
         </Box>
+      )}
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && songs.length > 20 && (
+        <Fab
+          color="primary"
+          aria-label="scroll to top"
+          onClick={scrollToTop}
+          sx={{
+            position: 'fixed',
+            bottom: 80,
+            right: 16,
+            zIndex: 1000,
+          }}
+        >
+          <KeyboardArrowUpIcon sx={{ color: theme => theme.palette.mode === 'dark' ? '#fff' : '#000' }} />
+        </Fab>
       )}
     </Box>
   );

@@ -106,16 +106,22 @@ function App() {
       const shortcut = urlParams.get('shortcut');
       
       if (shortcut === 'search') {
+        // Dismiss welcome screen if shown and navigate to search
+        if (showWelcome) {
+          setShowWelcome(false);
+        }
         setActiveTab('search');
-        setShowWelcome(false);
-      } else if (shortcut === 'favorites') {
+      } else if (shortcut === 'favourites' || shortcut === 'favorites') {
+        // Dismiss welcome screen if shown and navigate to favorites
+        if (showWelcome) {
+          setShowWelcome(false);
+        }
         setActiveTab('favourites');
-        setShowWelcome(false);
       }
     };
 
     handleShortcut();
-  }, []);
+  }, [showWelcome]);
 
   // Load chart songs only when welcome screen is dismissed AND home page is accessed
   useEffect(() => {
