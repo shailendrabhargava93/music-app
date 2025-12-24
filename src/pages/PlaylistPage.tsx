@@ -12,7 +12,6 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
-  Fab,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
@@ -22,7 +21,6 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { saavnApi } from '../services/saavnApi';
 
 interface PlaylistPageProps {
@@ -54,7 +52,6 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
   const [isFavourite, setIsFavourite] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedSong, setSelectedSong] = useState<any>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Check if playlist/album is in favourites
   useEffect(() => {
@@ -202,30 +199,6 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
     fetchPlaylist();
   }, [playlistId, type]);
 
-  // Scroll listener for scroll to top button
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 300) {
-        setShowScrollTop(true);
-      } else {
-        setShowScrollTop(false);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
-  // Function to scroll to top
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
-  };
-
   const getHighQualityImage = (images: Array<{ quality: string; url: string }>) => {
     if (!images || images.length === 0) return '';
     
@@ -252,16 +225,24 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
   };
 
   return (
-    <Box sx={{ pb: 14, minHeight: '100vh', pt: 1 }}>
-      {/* Header with Back Button */}
+    <Box sx={{ pb: 14, minHeight: '100vh', pt: 0 }}>
+      {/* Sticky header with back button and playlist name */}
       <Box
-        sx={{
+        sx={(theme) => ({
+          position: 'sticky',
+          top: 0,
+          zIndex: theme.zIndex.appBar,
           display: 'flex',
           alignItems: 'center',
           gap: 1,
-          px: 1,
+          px: 1.25,
+          py: 0.325,
+          justifyContent: 'flex-start',
+          width: '100%',
+          backgroundColor: theme.palette.background.default,
+          boxShadow: `0 1px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)'}`,
           mb: 1,
-        }}
+        })}
       >
         <IconButton
           onClick={onBack}
@@ -274,8 +255,8 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
         >
           <ArrowBackIcon />
         </IconButton>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
-          Playlist
+        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, flex: 1, pl: 0.5 }} noWrap>
+          {decodeHtmlEntities(playlistName)}
         </Typography>
       </Box>
 
@@ -288,10 +269,8 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
           px: 1,
           pb: 0.5,
           mb: 1,
-          background: (theme) =>
-            theme.palette.mode === 'dark'
-              ? 'linear-gradient(180deg, rgba(0, 188, 212, 0.1) 0%, transparent 100%)'
-              : 'linear-gradient(180deg, rgba(0, 188, 212, 0.05) 0%, transparent 100%)',
+          pt: 1,
+          background: 'transparent',
         }}
       >
         <Avatar
@@ -306,20 +285,6 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
         >
           <PlayArrowIcon sx={{ fontSize: 80 }} />
         </Avatar>
-        <Typography
-          variant="h6"
-          sx={{
-            color: 'text.primary',
-            fontWeight: 'bold',
-            textAlign: 'center',
-            mb: 0.5,
-            fontSize: '1.1rem',
-            px: 2,
-            lineHeight: 1.2,
-          }}
-        >
-          {decodeHtmlEntities(playlistName)}
-        </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5, fontSize: '0.85rem' }}>
           {songs.length} songs
         </Typography>
@@ -550,23 +515,6 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
         </Box>
       )}
 
-      {/* Scroll to Top Button */}
-      {showScrollTop && songs.length > 20 && (
-        <Fab
-          color="primary"
-          aria-label="scroll to top"
-          onClick={scrollToTop}
-          size="small"
-          sx={{
-            position: 'fixed',
-            bottom: 140,
-            right: 16,
-            zIndex: 999,
-          }}
-        >
-          <KeyboardArrowUpIcon sx={{ color: theme => theme.palette.mode === 'dark' ? '#fff' : '#000', fontSize: '1.2rem' }} />
-        </Fab>
-      )}
     </Box>
   );
 };

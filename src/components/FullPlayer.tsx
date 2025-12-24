@@ -34,7 +34,6 @@ interface FullPlayerProps {
   artist?: string;
   albumArt?: string;
   duration?: number;
-  audioUrl?: string;
   isPlaying?: boolean;
   onTogglePlay?: () => void;
   onNextSong?: () => void;
@@ -62,7 +61,6 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
   artist = 'Whethan',
   albumArt,
   duration = 151,
-  audioUrl,
   isPlaying = false,
   onTogglePlay,
   onNextSong,
@@ -80,8 +78,6 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
   source
 }) => {
   const [isFavorite, setIsFavorite] = useState(false);
-  const [progress, setProgress] = useState(externalProgress);
-  const [audio] = useState(() => new Audio());
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -91,12 +87,7 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
 
   // Merge queue with suggestions for Up Next display
   const upNextSongs = [...songQueue, ...suggestions];
-
-  // Sync external progress
-  React.useEffect(() => {
-    setProgress(externalProgress);
-  }, [externalProgress]);
-  const totalDuration = duration;
+  const currentProgress = Math.min(externalProgress ?? 0, duration ?? 0);
 
   // Decode HTML entities in strings
   const decodeHtmlEntities = (text: string): string => {
@@ -187,146 +178,6 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
     localStorage.setItem('favouriteSongs', JSON.stringify(favourites));
   };
 
-  // Reset progress and load new song when it changes
-  useEffect(() => {
-    setProgress(0);
-    
-    if (audioUrl) {
-      audio.src = audioUrl;
-      audio.load();
-    }
-  }, [songTitle, duration, audioUrl, audio]);
-
-  // Handle audio playback
-  useEffect(() => {
-    if (!audioUrl) return;
-
-    if (isPlaying) {
-      audio.play().catch(() => {
-        if (onTogglePlay) {
-          onTogglePlay();
-        }
-      });
-    } else {
-      audio.pause();
-    }
-  }, [isPlaying, audioUrl, audio, onTogglePlay]);
-
-  // Update progress as audio plays
-  useEffect(() => {
-    const updateProgress = () => {
-      if (audio.currentTime) {
-        const currentProgress = Math.floor(audio.currentTime);
-        setProgress(currentProgress);
-        if (onProgressChange) {
-          onProgressChange(currentProgress);
-        }
-      }
-    };
-
-    const handleEnded = () => {
-      setProgress(0);
-      // Automatically play next song
-      if (onNextSong) {
-        onNextSong();
-      }
-    };
-
-    audio.addEventListener('timeupdate', updateProgress);
-    audio.addEventListener('ended', handleEnded);
-
-    return () => {
-      audio.removeEventListener('timeupdate', updateProgress);
-      audio.removeEventListener('ended', handleEnded);
-    };
-  }, [audio, onTogglePlay]);
-
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      audio.pause();
-      audio.src = '';
-    };
-  }, [audio]);
-
-  // Setup MediaSession API for lock screen and notification controls
-  useEffect(() => {
-    if (!('mediaSession' in navigator) || !open) return;
-
-    // Set metadata for notification/lock screen
-    try {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: songTitle,
-        artist: artist,
-        album: albumName,
-        artwork: albumArt ? [
-          { src: albumArt, sizes: '96x96', type: 'image/jpeg' },
-          { src: albumArt, sizes: '128x128', type: 'image/jpeg' },
-          { src: albumArt, sizes: '192x192', type: 'image/jpeg' },
-          { src: albumArt, sizes: '256x256', type: 'image/jpeg' },
-          { src: albumArt, sizes: '384x384', type: 'image/jpeg' },
-          { src: albumArt, sizes: '512x512', type: 'image/jpeg' },
-        ] : [],
-      });
-
-      // Update playback state
-      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
-
-      // Set up action handlers
-      const handlers = {
-        play: () => {
-          if (onTogglePlay && !isPlaying) {
-            onTogglePlay();
-          }
-        },
-        pause: () => {
-          if (onTogglePlay && isPlaying) {
-            onTogglePlay();
-          }
-        },
-        nexttrack: () => {
-          if (onNextSong) {
-            onNextSong();
-          }
-        },
-        previoustrack: () => {
-          if (onPreviousSong) {
-            onPreviousSong();
-          }
-        },
-      };
-
-      navigator.mediaSession.setActionHandler('play', handlers.play);
-      navigator.mediaSession.setActionHandler('pause', handlers.pause);
-      navigator.mediaSession.setActionHandler('nexttrack', handlers.nexttrack);
-      navigator.mediaSession.setActionHandler('previoustrack', handlers.previoustrack);
-      
-      // Seek action if supported
-      navigator.mediaSession.setActionHandler('seekto', (event: any) => {
-        if (onProgressChange && event?.seekTime !== undefined) {
-          onProgressChange(Math.floor(event.seekTime));
-          audio.currentTime = event.seekTime;
-        }
-      });
-    } catch (error) {
-      // MediaSession API not supported
-      console.debug('MediaSession API not fully supported');
-    }
-
-    // Set position state for seekbar in notification
-    try {
-      if (navigator.mediaSession.setPositionState && duration) {
-        navigator.mediaSession.setPositionState({
-          duration: duration,
-          playbackRate: 1,
-          position: progress,
-        });
-      }
-    } catch (error) {
-      // Position state not supported
-    }
-  }, [songTitle, artist, albumName, albumArt, isPlaying, onTogglePlay, onNextSong, onPreviousSong, onProgressChange, progress, duration, audio, open]);
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -334,9 +185,10 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
   };
 
   const handleSliderChange = (_event: Event, newValue: number | number[]) => {
-    const newTime = newValue as number;
-    setProgress(newTime);
-    audio.currentTime = newTime;
+    const newTime = Array.isArray(newValue) ? newValue[0] : newValue;
+    if (onProgressChange) {
+      onProgressChange(newTime as number);
+    }
   };
 
   const togglePlay = () => {
@@ -484,9 +336,9 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
         {/* Progress Bar */}
         <Box sx={{ mb: 1, maxWidth: 360, mx: 'auto', width: '100%' }}>
           <Slider
-            value={progress}
+            value={currentProgress}
             min={0}
-            max={totalDuration}
+            max={duration || 0}
             onChange={handleSliderChange}
             sx={{
               color: 'primary.main',
@@ -514,11 +366,11 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
               mt: -0.5,
             }}
           >
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {formatTime(currentProgress)}
+              </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {formatTime(progress)}
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {formatTime(totalDuration)}
+                {formatTime(duration ?? 0)}
             </Typography>
           </Box>
         </Box>

@@ -313,7 +313,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
   };
 
   return (
-    <Box sx={{ pb: 10, px: 2 }}>
+    <Box sx={{ pb: 10, px: 2, pt: 2 }}>
       {/* Search Input */}
       <TextField
         fullWidth

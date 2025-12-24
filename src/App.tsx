@@ -18,6 +18,13 @@ import { saavnApi } from './services/saavnApi';
 import { soundChartsApi, SoundChartsItem } from './services/soundChartsApi';
 import SearchPage from './pages/SearchPage';
 
+const decodeHtmlEntities = (text: string): string => {
+  if (!text) return text;
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+};
+
 interface ChartSongWithSaavn extends SoundChartsItem {
   saavnData?: Song;
   isSearching?: boolean;
@@ -57,6 +64,7 @@ function App() {
     const saved = localStorage.getItem('lastSongProgress');
     return saved ? parseInt(saved) : 0;
   });
+  const [audio] = useState(() => new Audio());
   
   // Queue management
   const [songQueue, setSongQueue] = useState<Song[]>([]);
@@ -375,12 +383,6 @@ function App() {
   };
 
   // Decode HTML entities in strings
-  const decodeHtmlEntities = (text: string): string => {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = text;
-    return textarea.value;
-  };
-
   const handleSongSelect = async (song: Song) => {
     try {
       // Set loading state
@@ -410,14 +412,33 @@ function App() {
 
       const getHighQualityAudio = (downloadUrls: Array<{ quality: string; url?: string; link?: string }>) => {
         if (!downloadUrls || downloadUrls.length === 0) return '';
-        // Try to get the highest quality audio
-        const qualities = ['320kbps', '160kbps', '96kbps', '48kbps', '12kbps'];
-        for (const quality of qualities) {
+        
+        // Get user's preferred quality setting (48, 160, or 320)
+        const userQuality = localStorage.getItem('streamQuality') || '320';
+        
+        // Map user quality preference to available qualities
+        let priorityQualities: string[] = [];
+        
+        if (userQuality === '48') {
+          // Low quality: try 48kbps first, then fallback
+          priorityQualities = ['48kbps', '96kbps', '160kbps', '320kbps', '12kbps'];
+        } else if (userQuality === '160') {
+          // Medium quality: try 160kbps first, then fallback
+          priorityQualities = ['160kbps', '320kbps', '96kbps', '48kbps', '12kbps'];
+        } else {
+          // High (default): try 320kbps first, then fallbacks
+          priorityQualities = ['320kbps', '160kbps', '96kbps', '48kbps', '12kbps'];
+        }
+        
+        // Try to get audio in priority order
+        for (const quality of priorityQualities) {
           const audio = downloadUrls.find(url => url.quality === quality);
           if (audio) {
             return audio.url || audio.link || '';
           }
         }
+        
+        // Fallback to any available audio
         return downloadUrls[downloadUrls.length - 1]?.url || downloadUrls[downloadUrls.length - 1]?.link || '';
       };
 
@@ -496,6 +517,11 @@ function App() {
       // Error loading song
       setIsLoadingSong(false);
     }
+  };
+
+  const handleProgressSeek = (newTime: number) => {
+    setSongProgress(newTime);
+    audio.currentTime = newTime;
   };
 
   const handleNextSong = () => {
@@ -589,6 +615,85 @@ function App() {
     setSelectedPlaylist(null);
   };
 
+  // MediaSession metadata & handlers
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !currentSong) return;
+
+    const normalizedTitle = decodeHtmlEntities(currentSong.title);
+    const normalizedArtist = decodeHtmlEntities(currentSong.artist);
+    const normalizedAlbum = decodeHtmlEntities(currentSong.albumName || 'Wave Music');
+    const artworkSrc = currentSong.albumArt;
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: normalizedTitle,
+        artist: normalizedArtist,
+        album: normalizedAlbum,
+        artwork: artworkSrc
+          ? [
+              { src: artworkSrc, sizes: '512x512', type: 'image/jpeg' },
+              { src: artworkSrc, sizes: '384x384', type: 'image/jpeg' },
+              { src: artworkSrc, sizes: '256x256', type: 'image/jpeg' },
+              { src: artworkSrc, sizes: '192x192', type: 'image/jpeg' },
+              { src: artworkSrc, sizes: '128x128', type: 'image/jpeg' },
+              { src: artworkSrc, sizes: '96x96', type: 'image/jpeg' },
+            ]
+          : [],
+      });
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+      if (navigator.mediaSession.setPositionState && currentSong.duration) {
+        navigator.mediaSession.setPositionState({
+          duration: currentSong.duration,
+          playbackRate: 1,
+          position: Math.floor(songProgress),
+        });
+      }
+
+      localStorage.setItem('mediaSessionMetadata', JSON.stringify({
+        title: normalizedTitle,
+        artist: normalizedArtist,
+        album: normalizedAlbum,
+        artwork: artworkSrc,
+        duration: currentSong.duration,
+        progress: Math.floor(songProgress),
+        playbackState: isPlaying ? 'playing' : 'paused',
+      }));
+    } catch (error) {
+      console.debug('MediaSession metadata setup failed', error);
+    }
+  }, [currentSong, isPlaying, songProgress]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+
+    const safeSetHandler = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler);
+      } catch (error) {
+        // Some browsers throw if the action isn't supported
+      }
+    };
+
+    safeSetHandler('play', () => setIsPlaying(true));
+    safeSetHandler('pause', () => setIsPlaying(false));
+    safeSetHandler('nexttrack', () => handleNextSong());
+    safeSetHandler('previoustrack', () => handlePreviousSong());
+    safeSetHandler('seekto', (event: MediaSessionActionDetails) => {
+      if (event.seekTime !== undefined) {
+        handleProgressSeek(event.seekTime);
+      }
+    });
+    safeSetHandler('stop', () => setIsPlaying(false));
+    safeSetHandler('skipad', () => handleNextSong());
+
+    return () => {
+      ['play', 'pause', 'nexttrack', 'previoustrack', 'seekto', 'stop', 'skipad'].forEach(action => {
+        safeSetHandler(action as MediaSessionAction, null);
+      });
+    };
+  }, [handleNextSong, handlePreviousSong, handleProgressSeek]);
+
   const handleAddToQueue = (song: Song) => {
     setSongQueue(prev => [...prev, song]);
     setSnackbarMessage('Added to queue');
@@ -610,6 +715,51 @@ function App() {
     }
     return false;
   };
+
+  // Sync audio source when song changes
+  useEffect(() => {
+    if (!currentSong || !currentSong.downloadUrl) {
+      audio.pause();
+      audio.currentTime = 0;
+      return;
+    }
+
+    const trackUrl = currentSong.downloadUrl;
+    audio.pause();
+    audio.src = trackUrl;
+    audio.load();
+    setSongProgress(0);
+  }, [currentSong, audio]);
+
+  // Handle play/pause state changes
+  useEffect(() => {
+    if (!currentSong) return;
+    if (isPlaying) {
+      audio.play().catch(() => setIsPlaying(false));
+    } else {
+      audio.pause();
+    }
+  }, [isPlaying, currentSong, audio]);
+
+  // Update progress as the audio plays
+  useEffect(() => {
+    const updateProgress = () => {
+      setSongProgress(Math.floor(audio.currentTime));
+    };
+
+    const handleEnded = () => {
+      setSongProgress(0);
+      handleNextSong();
+    };
+
+    audio.addEventListener('timeupdate', updateProgress);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', updateProgress);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [audio, handleNextSong]);
 
   const handleFavouriteSongSelect = async (songId: string) => {
     // Load the song by ID from Saavn
@@ -777,8 +927,7 @@ function App() {
           <Container 
             maxWidth="sm" 
             sx={{ 
-              px: { xs: 0, sm: 2 },
-              pt: 1
+              px: { xs: 0, sm: (selectedPlaylist || showAllCharts) ? 0 : 2 }
             }}
           >
             {renderContent()}
@@ -806,7 +955,6 @@ function App() {
                 artist={currentSong.artist}
                 albumArt={currentSong.albumArt}
                 duration={currentSong.duration}
-                audioUrl={currentSong.downloadUrl}
                 isPlaying={isPlaying}
                 onTogglePlay={() => setIsPlaying(!isPlaying)}
                 onNextSong={handleNextSong}
@@ -814,7 +962,7 @@ function App() {
                 onSongSelect={handleSongSelect}
                 songQueue={songQueue}
                 progress={songProgress}
-                onProgressChange={setSongProgress}
+                onProgressChange={handleProgressSeek}
                 // Song details for info popup
                 albumId={currentSong.albumId}
                 albumName={currentSong.albumName}

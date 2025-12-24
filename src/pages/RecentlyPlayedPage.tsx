@@ -124,27 +124,49 @@ const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongS
   };
 
   return (
-    <Box sx={{ pb: 10, pt: 1 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, px: 2, gap: 1 }}>
-        <IconButton onClick={onBack}>
+    <Box sx={{ pb: 10, pt: 0 }}>
+      {/* Sticky header */}
+      <Box
+        sx={(theme) => ({
+          position: 'sticky',
+          top: 0,
+          zIndex: theme.zIndex.appBar,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          px: 1.25,
+          py: 0.325,
+          justifyContent: 'flex-start',
+          width: '100%',
+          backgroundColor: theme.palette.background.default,
+          boxShadow: `0 1px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)'}`,
+          mb: 1,
+        })}
+      >
+        <IconButton
+          onClick={onBack}
+          sx={{
+            color: 'text.primary',
+            '&:hover': {
+              bgcolor: 'action.hover',
+            },
+          }}
+        >
           <ArrowBackIcon />
         </IconButton>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Recently Played
-          </Typography>
-          {recentSongs.length > 0 && (
-            <IconButton
-              onClick={handleClearRecent}
-              size="small"
-              sx={{ color: 'text.secondary' }}
-              title="Clear all recently played songs"
-            >
-              <ClearAllIcon />
-            </IconButton>
-          )}
-        </Box>
+        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, fontSize: '1.1rem', flex: 1, pl: 0.5 }} noWrap>
+          Recently Played
+        </Typography>
+        {recentSongs.length > 0 && (
+          <IconButton
+            onClick={handleClearRecent}
+            size="small"
+            sx={{ color: 'text.secondary' }}
+            title="Clear all recently played songs"
+          >
+            <ClearAllIcon />
+          </IconButton>
+        )}
       </Box>
 
       {/* Songs List */}

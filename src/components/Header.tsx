@@ -15,18 +15,19 @@ const Header: React.FC<HeaderProps> = ({ onRecentlyPlayedClick, onSettingsClick 
         display: 'flex', 
         alignItems: 'center',
         justifyContent: 'space-between',
-        mb: 4,
-        px: 2
+        py: 0.5,
+        mb: 2,
+        px: { xs: 2, sm: 2 }
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <Box
           component="img"
           src="/wave-logo.svg"
           alt="Wave Music"
           sx={{
-            width: 48,
-            height: 48,
+            width: 40,
+            height: 40,
             objectFit: 'contain',
           }}
         />

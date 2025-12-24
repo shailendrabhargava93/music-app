@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, CircularProgress, IconButton, Skeleton, Menu, MenuItem, ListItemIcon, Fab } from '@mui/material';
+import { Box, Typography, CircularProgress, IconButton, Skeleton, Menu, MenuItem, ListItemIcon } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -7,7 +7,6 @@ import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FavoriteIcon from '@mui/icons-material/Favorite';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { Song } from '../types/api';
 import { SoundChartsItem } from '../services/soundChartsApi';
 
@@ -29,7 +28,6 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedSong, setSelectedSong] = useState<ChartSongWithSaavn | null>(null);
   const [favouriteSongs, setFavouriteSongs] = useState<string[]>([]);
-  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Scroll to top when component mounts and load all songs
   useEffect(() => {
@@ -49,30 +47,6 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
       }
     }
   }, []);
-
-  // Scroll listener for scroll to top button
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 300) {
-        setShowScrollTop(true);
-      } else {
-        setShowScrollTop(false);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
-  // Function to scroll to top
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
-  };
 
   const handleSongClick = (song: ChartSongWithSaavn) => {
     if (song.saavnData) {
@@ -147,15 +121,6 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
       return '';
     }
 
-    const qualities = ['150x150', '500x500', '50x50'];
-    
-    for (const quality of qualities) {
-      const img = imageArray.find((img: any) => img.quality === quality);
-      if (img) {
-        return img.url || img.link || '';
-      }
-    }
-    
     const firstImg = imageArray[0];
     return firstImg?.url || firstImg?.link || '';
   };
@@ -165,20 +130,27 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
       sx={{ 
         pb: 10, 
         minHeight: '100vh',
-        position: 'relative',
-        overflow: 'auto'
+        pt: 0,
       }}
     >
-      {/* Header with Back Button */}
+      {/* Sticky header with back button */}
       <Box
-        sx={{
+        sx={(theme) => ({
+          position: 'sticky',
+          top: 0,
+          zIndex: theme.zIndex.appBar,
           display: 'flex',
           alignItems: 'center',
           gap: 1,
-          px: 2,
-          pt: 1,
+          px: 1.25,
+          py: 0.325,
+          justifyContent: 'flex-start',
+          width: '100%',
+          backgroundColor: theme.palette.background.default,
+          boxShadow: `0 1px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)'}`,
+          mt: 0,
           mb: 1,
-        }}
+        })}
       >
         <IconButton
           onClick={onBack}
@@ -191,8 +163,8 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
         >
           <ArrowBackIcon />
         </IconButton>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, fontSize: '1.1rem' }}>
-          All Trending Songs
+        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, fontSize: '1.1rem', pl: 0.5 }} noWrap>
+          Trending Songs
         </Typography>
       </Box>
 
@@ -387,23 +359,6 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
         </MenuItem>
       </Menu>
 
-      {/* Scroll to Top Button */}
-      {showScrollTop && (
-        <Fab
-          color="primary"
-          aria-label="scroll to top"
-          onClick={scrollToTop}
-          size="small"
-          sx={{
-            position: 'fixed',
-            bottom: 140,
-            right: 16,
-            zIndex: 999,
-          }}
-        >
-          <KeyboardArrowUpIcon sx={{ color: theme => theme.palette.mode === 'dark' ? '#fff' : '#000', fontSize: '1.2rem' }} />
-        </Fab>
-      )}
     </Box>
   );
 };

@@ -193,10 +193,11 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
         minHeight: '100vh',
         bgcolor: 'background.default',
         pb: 10,
-        pt: 1
+        pt: 1,
+        px: 2
       }}
     >
-      <Box sx={{ px: 2 }}>
+      <Box sx={{ px: 0 }}>
         <Box sx={{ mb: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -258,7 +259,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
                   justifyContent: 'center',
                   minHeight: '50vh',
                   gap: 2,
-                  px: 3,
+                  px: { xs: 1, sm: 1.5 },
                 }}
               >
                 <MusicNoteIcon sx={{ fontSize: 80, color: 'text.disabled', opacity: 0.3 }} />
@@ -270,14 +271,14 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
                 </Typography>
               </Box>
             ) : (
-              <List sx={{ px: 2 }}>
+              <List sx={{ px: 0 }}>
                 {favourites.map((song) => (
                   <ListItem
                     key={song.id}
                     sx={{
                       borderRadius: 1,
                       mb: 0.5,
-                      px: 1,
+                        px: 0,
                       py: 0.5,
                       '&:hover': {
                         bgcolor: 'action.hover',
@@ -379,7 +380,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
                   justifyContent: 'center',
                   minHeight: '50vh',
                   gap: 2,
-                  px: 2,
+                  px: { xs: 1, sm: 1.5 },
                 }}
               >
                 <AlbumIcon sx={{ fontSize: 80, color: 'text.disabled', opacity: 0.3 }} />
@@ -391,14 +392,14 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
                 </Typography>
               </Box>
             ) : (
-              <List sx={{ px: 2 }}>
+                <List sx={{ px: 0 }}>
                 {favouriteAlbums.map((album) => (
                   <ListItem
                     key={album.id}
                     sx={{
                       borderRadius: 1,
                       mb: 0.5,
-                      px: 1,
+                      px: 0,
                       py: 0.5,
                       cursor: 'pointer',
                       '&:hover': {
@@ -518,7 +519,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect }) => {
                     sx={{
                       borderRadius: 1,
                       mb: 0.5,
-                      px: 1,
+                      px: 0,
                       py: 0.5,
                       cursor: 'pointer',
                       '&:hover': {

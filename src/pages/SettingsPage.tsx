@@ -11,7 +11,10 @@ import {
   Container,
   IconButton,
   Snackbar,
-  Alert
+  Alert,
+  Radio,
+  RadioGroup,
+  Drawer
 } from '@mui/material';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
@@ -20,6 +23,9 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import LabelOffIcon from '@mui/icons-material/LabelOff';
+import HighQualityIcon from '@mui/icons-material/HighQuality';
+import CloseIcon from '@mui/icons-material/Close';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 interface SettingsPageProps {
   isDarkMode: boolean;
@@ -38,6 +44,28 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 }) => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [streamQuality, setStreamQuality] = useState(() => {
+    const saved = localStorage.getItem('streamQuality');
+    return saved || '320';
+  });
+  const [qualityDrawerOpen, setQualityDrawerOpen] = useState(false);
+
+  const handleStreamQualityChange = (newQuality: string) => {
+    setStreamQuality(newQuality);
+    localStorage.setItem('streamQuality', newQuality);
+    setSnackbarMessage(`Stream quality set to ${newQuality}kbps`);
+    setSnackbarOpen(true);
+    setQualityDrawerOpen(false);
+  };
+
+  const getQualityLabel = () => {
+    const labels: Record<string, string> = {
+      '48': '48 kbps - Low',
+      '160': '160 kbps - Medium',
+      '320': '320 kbps - High'
+    };
+    return labels[streamQuality] || '320 kbps - High';
+  };
 
   const handleClearSearchHistory = () => {
     localStorage.removeItem('recentSearches');
@@ -76,34 +104,52 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         pt: 0
       }}
     >
-      <Container maxWidth="md">
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, px: 0, pt: 0, gap: 1 }}>
-          {onNavigateHome && (
-            <IconButton onClick={onNavigateHome}>
-              <ArrowBackIcon />
-            </IconButton>
-          )}
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              color: 'text.primary', 
-              fontWeight: 600
+      <Box
+        sx={(theme) => ({
+          position: 'sticky',
+          top: 0,
+          zIndex: theme.zIndex.appBar,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          px: 1.25,
+          py: 0.325,
+          justifyContent: 'flex-start',
+          width: '100%',
+          backgroundColor: theme.palette.background.default,
+          boxShadow: `0 1px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)'}`,
+          mb: 1,
+        })}
+      >
+        {onNavigateHome && (
+          <IconButton
+            onClick={onNavigateHome}
+            sx={{
+              color: 'text.primary',
             }}
           >
-            Settings
-          </Typography>
-        </Box>
-
+            <ArrowBackIcon />
+          </IconButton>
+        )}
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            color: 'text.primary', 
+            fontWeight: 600,
+            fontSize: '1.1rem'
+          }}
+        >
+          Settings
+        </Typography>
+      </Box>
+      <Container maxWidth="md" sx={{ px: { xs: 0, sm: 2 }, pt: 0 }}>
         <Paper 
           elevation={0}
           sx={{ 
             bgcolor: 'background.paper',
             borderRadius: 2,
             overflow: 'hidden',
-            border: (theme) => 
-              theme.palette.mode === 'light' 
-                ? '1px solid rgba(0, 0, 0, 0.08)' 
-                : 'none'
+            border: (theme) => `1px solid ${theme.palette.divider}`
           }}
         >
           <List sx={{ py: 0 }}>
@@ -113,7 +159,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                 px: 3,
                 '&:hover': {
                   bgcolor: 'action.hover'
-                }
+                },
+                borderBottom: (theme) => `1px solid ${theme.palette.divider}`
               }}
             >
               <Box 
@@ -173,7 +220,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                 px: 3,
                 '&:hover': {
                   bgcolor: 'action.hover'
-                }
+                },
+                borderBottom: (theme) => `1px solid ${theme.palette.divider}`
               }}
             >
               <Box 
@@ -222,6 +270,60 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             </ListItem>
             
             <Divider />
+
+            <ListItem
+              onClick={() => setQualityDrawerOpen(true)}
+              sx={{
+                py: 2,
+                px: 3,
+                cursor: 'pointer',
+                '&:hover': {
+                  bgcolor: 'action.hover'
+                },
+                borderBottom: (theme) => `1px solid ${theme.palette.divider}`
+              }}
+            >
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 2,
+                  flex: 1
+                }}
+              >
+                <HighQualityIcon sx={{ color: 'primary.main' }} />
+                <ListItemText
+                  primary={
+                    <Typography 
+                      variant="body1" 
+                      sx={{ 
+                        fontWeight: 600,
+                        color: 'text.primary'
+                      }}
+                    >
+                      Stream Quality
+                    </Typography>
+                  }
+                  secondary={
+                    <Typography 
+                      variant="body2" 
+                      sx={{ color: 'text.secondary' }}
+                    >
+                      {getQualityLabel()}
+                    </Typography>
+                  }
+                />
+              </Box>
+              <IconButton
+                size="small"
+                sx={{ color: 'text.secondary' }}
+                aria-label="open quality settings"
+              >
+                <ChevronRightIcon />
+              </IconButton>
+            </ListItem>
+            
+            <Divider />
             
             <ListItem
               onClick={handleShare}
@@ -231,7 +333,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                 cursor: 'pointer',
                 '&:hover': {
                   bgcolor: 'action.hover'
-                }
+                },
+                borderBottom: (theme) => `1px solid ${theme.palette.divider}`
               }}
             >
               <Box 
@@ -283,7 +386,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                 cursor: 'pointer',
                 '&:hover': {
                   bgcolor: 'action.hover'
-                }
+                },
+                borderBottom: (theme) => `1px solid ${theme.palette.divider}`
               }}
             >
               <Box 
@@ -396,6 +500,204 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* Stream Quality Drawer */}
+      <Drawer
+        anchor="bottom"
+        open={qualityDrawerOpen}
+        onClose={() => setQualityDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '16px 16px 0 0',
+            bgcolor: 'background.paper',
+          }
+        }}
+      >
+        <Box
+          sx={{
+            p: 3,
+            pb: 4,
+            maxWidth: 600,
+            mx: 'auto',
+            width: '100%'
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                color: 'text.primary',
+                fontWeight: 600
+              }}
+            >
+              Select Stream Quality
+            </Typography>
+            <IconButton
+              onClick={() => setQualityDrawerOpen(false)}
+              size="small"
+              sx={{ color: 'text.secondary' }}
+              aria-label="close"
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: 'text.secondary',
+              mb: 2.5
+            }}
+          >
+            Choose your preferred audio bitrate. Higher quality requires more data.
+          </Typography>
+
+          <RadioGroup
+            value={streamQuality}
+            onChange={(e) => handleStreamQualityChange(e.target.value)}
+          >
+            <Box
+              onClick={() => handleStreamQualityChange('48')}
+              sx={{
+                p: 2,
+                mb: 1.5,
+                borderRadius: 2,
+                cursor: 'pointer',
+                border: '2px solid',
+                borderColor: streamQuality === '48' ? 'primary.main' : 'divider',
+                bgcolor: streamQuality === '48' ? (theme) => `rgba(0, 188, 212, ${theme.palette.mode === 'dark' ? 0.12 : 0.08})` : 'transparent',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  bgcolor: streamQuality === '48' ? (theme) => `rgba(0, 188, 212, ${theme.palette.mode === 'dark' ? 0.15 : 0.1})` : (theme) => `rgba(0, 0, 0, ${theme.palette.mode === 'dark' ? 0.08 : 0.03})`
+                }
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Radio
+                  checked={streamQuality === '48'}
+                  size="small"
+                  sx={{
+                    color: 'primary.main'
+                  }}
+                />
+                <Box>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      fontWeight: 600,
+                      color: 'text.primary'
+                    }}
+                  >
+                    Low Quality (48 kbps)
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: 'text.secondary'
+                    }}
+                  >
+                    Minimal data usage, suitable for background listening
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            <Box
+              onClick={() => handleStreamQualityChange('160')}
+              sx={{
+                p: 2,
+                mb: 1.5,
+                borderRadius: 2,
+                cursor: 'pointer',
+                border: '2px solid',
+                borderColor: streamQuality === '160' ? 'primary.main' : 'divider',
+                bgcolor: streamQuality === '160' ? (theme) => `rgba(0, 188, 212, ${theme.palette.mode === 'dark' ? 0.12 : 0.08})` : 'transparent',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  bgcolor: streamQuality === '160' ? (theme) => `rgba(0, 188, 212, ${theme.palette.mode === 'dark' ? 0.15 : 0.1})` : (theme) => `rgba(0, 0, 0, ${theme.palette.mode === 'dark' ? 0.08 : 0.03})`
+                }
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Radio
+                  checked={streamQuality === '160'}
+                  size="small"
+                  sx={{
+                    color: 'primary.main'
+                  }}
+                />
+                <Box>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      fontWeight: 600,
+                      color: 'text.primary'
+                    }}
+                  >
+                    Medium Quality (160 kbps)
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: 'text.secondary'
+                    }}
+                  >
+                    Good balance between quality and data usage
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            <Box
+              onClick={() => handleStreamQualityChange('320')}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                cursor: 'pointer',
+                border: '2px solid',
+                borderColor: streamQuality === '320' ? 'primary.main' : 'divider',
+                bgcolor: streamQuality === '320' ? (theme) => `rgba(0, 188, 212, ${theme.palette.mode === 'dark' ? 0.12 : 0.08})` : 'transparent',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  bgcolor: streamQuality === '320' ? (theme) => `rgba(0, 188, 212, ${theme.palette.mode === 'dark' ? 0.15 : 0.1})` : (theme) => `rgba(0, 0, 0, ${theme.palette.mode === 'dark' ? 0.08 : 0.03})`
+                }
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Radio
+                  checked={streamQuality === '320'}
+                  size="small"
+                  sx={{
+                    color: 'primary.main'
+                  }}
+                />
+                <Box>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      fontWeight: 600,
+                      color: 'text.primary'
+                    }}
+                  >
+                    High Quality (320 kbps) ⭐
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: 'text.secondary'
+                    }}
+                  >
+                    Best quality, uses more data
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          </RadioGroup>
+        </Box>
+      </Drawer>
     </Box>
   );
 };
