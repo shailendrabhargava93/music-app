@@ -9,10 +9,6 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -21,7 +17,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import Header from '../components/Header';
-import { Song, CurrentSong } from '../types/api';
+import { Song } from '../types/api';
 import { SoundChartsItem } from '../services/soundChartsApi';
 import { saavnApi } from '../services/saavnApi';
 import AlbumIcon from '@mui/icons-material/Album';
@@ -31,18 +27,18 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import { FAVOURITE_SONGS_KEY, persistFavourites, readFavourites, getMeta, setMeta } from '../services/storage';
 
 interface HomePageProps {
-  onSongSelect: (song: Song) => void;
+  onSongSelect: (song: Song, contextSongs?: Song[]) => void;
   chartSongs: ChartSongWithSaavn[];
   chartSongsLoading: boolean;
   onViewAllCharts: () => void;
   onAlbumSelect: (albumId: string, albumName: string, albumImage: string) => void;
   onPlaylistSelect: (playlistId: string, playlistName: string, playlistImage: string) => void;
+  onArtistSelect: (artistId: string, artistName: string, artistImage: string) => void;
   onRecentlyPlayedClick?: () => void;
   onSettingsClick?: () => void;
   onAddToQueue?: (song: Song) => void;
   onPlayNext?: (song: Song) => void;
   onShowSnackbar?: (message: string) => void;
-  lastPlayedSong?: CurrentSong | null;
 }
 
 interface ChartSongWithSaavn extends SoundChartsItem {
@@ -55,45 +51,15 @@ const LATEST_ALBUMS_KEY = 'latestAlbums';
 const LATEST_ALBUMS_TIMESTAMP_KEY = 'latestAlbumsTimestamp';
 const TRENDING_PLAYLISTS_KEY = 'trendingPlaylists';
 const TRENDING_PLAYLISTS_TIMESTAMP_KEY = 'trendingPlaylistsTimestamp';
-const SIMILAR_ARTIST_FETCH_LIMIT = 5;
-const SIMILAR_ARTIST_DISPLAY_LIMIT = 3;
+const TOP_ARTISTS_QUERY = 'latest';
+const TOP_ARTISTS_LIMIT = 12;
+const TOP_ARTISTS_SEARCH_LIMIT = 30;
 
-interface SimilarArtist {
-  id: string;
-  name: string;
-  image?: string;
-}
-
-interface ArtistEntry {
+interface ArtistPreview {
   id?: string;
   name?: string;
+  image?: string;
 }
-
-const ARTIST_SPLIT_PATTERN = /(?:,|&|feat\.?|ft\.?|featuring)/gi;
-
-const extractArtistNames = (artistField?: string): string[] => {
-  if (!artistField) return [];
-  return artistField
-    .split(ARTIST_SPLIT_PATTERN)
-    .map(name => name.trim())
-    .filter(Boolean);
-};
-
-const joinArtistNames = (artists?: ArtistEntry[]): string => {
-  if (!artists || artists.length === 0) return '';
-  return artists
-    .map(artist => artist?.name?.trim() ?? '')
-    .filter(Boolean)
-    .join(', ');
-};
-
-const joinArtistIds = (artists?: ArtistEntry[]): string => {
-  if (!artists || artists.length === 0) return '';
-  return artists
-    .map(artist => artist?.id?.trim() ?? '')
-    .filter(Boolean)
-    .join(', ');
-};
 
 const getHighQualityImage = (images?: Array<{ quality?: string; url?: string; link?: string }>): string => {
   if (!images || images.length === 0) return '';
@@ -115,13 +81,6 @@ const normalizeArtistName = (raw?: string): string => {
   return decoded.replace(/\s+/g, ' ').trim();
 };
 
-const sanitizeSearchTerm = (raw?: string): string => {
-  const decoded = decodeHtmlEntities(raw || '');
-  return decoded
-    .replace(/[^\p{L}0-9\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-};
 
 const collectArtistImageSources = (candidate: any): Array<{ quality?: string; url?: string; link?: string }> => {
   const sources: Array<{ quality?: string; url?: string; link?: string }> = [];
@@ -154,45 +113,6 @@ const collectArtistImageSources = (candidate: any): Array<{ quality?: string; ur
   return sources;
 };
 
-const convertSearchResultToSong = (result: any): Song => {
-  const primaryArtists = result.artists?.primary ?? [];
-  const featuredArtists = result.artists?.featured ?? [];
-  const primaryNames = joinArtistNames(primaryArtists) || (typeof result.primaryArtists === 'string' ? result.primaryArtists : '');
-  const featuredNames = joinArtistNames(featuredArtists) || (typeof result.featuredArtists === 'string' ? result.featuredArtists : '');
-  const primaryIds = joinArtistIds(primaryArtists) || result.primaryArtistsId || '';
-  const featuredIds = joinArtistIds(featuredArtists) || result.featuredArtistsId || '';
-
-  const albumInfo = result.album
-    ? {
-        id: result.album.id || '',
-        name: result.album.name || '',
-        url: result.album.url || '',
-      }
-    : undefined;
-
-  return {
-    id: result.id || `${result.name}-${Date.now()}`,
-    name: result.name || 'Unknown song',
-    album: albumInfo,
-    year: result.year || '',
-    releaseDate: result.releaseDate || '',
-    duration: result.duration || 0,
-    label: result.label || '',
-    primaryArtists: primaryNames,
-    primaryArtistsId: primaryIds,
-    featuredArtists: featuredNames,
-    featuredArtistsId: featuredIds,
-    explicitContent: result.explicitContent ?? 0,
-    playCount: result.playCount ?? 0,
-    language: result.language || '',
-    hasLyrics: result.hasLyrics ?? false,
-    url: result.url || '',
-    copyright: result.copyright || '',
-    image: Array.isArray(result.image) ? result.image : [],
-    downloadUrl: Array.isArray(result.downloadUrl) ? result.downloadUrl : [],
-  };
-};
-
 const decodeHtmlEntities = (text: string): string => {
   if (!text || typeof document === 'undefined') return text;
   const textarea = document.createElement('textarea');
@@ -200,7 +120,20 @@ const decodeHtmlEntities = (text: string): string => {
   return textarea.value;
 };
 
-const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSongsLoading, onViewAllCharts, onAlbumSelect, onPlaylistSelect, onRecentlyPlayedClick, onSettingsClick, onAddToQueue, onPlayNext, onShowSnackbar, lastPlayedSong }) => {
+const HomePage: React.FC<HomePageProps> = ({
+  onSongSelect,
+  chartSongs,
+  chartSongsLoading,
+  onViewAllCharts,
+  onAlbumSelect,
+  onPlaylistSelect,
+  onArtistSelect,
+  onRecentlyPlayedClick,
+  onSettingsClick,
+  onAddToQueue,
+  onPlayNext,
+  onShowSnackbar,
+}) => {
   const [displayedSongs, setDisplayedSongs] = useState<ChartSongWithSaavn[]>([]);
   const [latestAlbums, setLatestAlbums] = useState<any[]>([]);
   const [albumsLoading, setAlbumsLoading] = useState(true);
@@ -211,12 +144,9 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedSong, setSelectedSong] = useState<ChartSongWithSaavn | null>(null);
   const [favouriteSongs, setFavouriteSongs] = useState<string[]>([]);
-  const [similarArtists, setSimilarArtists] = useState<SimilarArtist[]>([]);
-  const [similarArtistsLoading, setSimilarArtistsLoading] = useState(false);
-  const [activeArtist, setActiveArtist] = useState<SimilarArtist | null>(null);
-  const [artistSongs, setArtistSongs] = useState<Song[]>([]);
-  const [artistSongsLoading, setArtistSongsLoading] = useState(false);
-  const [artistSongsError, setArtistSongsError] = useState<string | null>(null);
+  const [topArtists, setTopArtists] = useState<ArtistPreview[]>([]);
+  const [topArtistsLoading, setTopArtistsLoading] = useState(false);
+  const [topArtistsError, setTopArtistsError] = useState<string | null>(null);
 
   // Fetch latest albums only once
   useEffect(() => {
@@ -319,89 +249,73 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
     loadFavouriteIds();
   }, []);
 
-  const similarToLabel = (() => {
-    if (!lastPlayedSong?.artist) return '';
-    const extracted = extractArtistNames(lastPlayedSong.artist);
-    if (extracted.length > 0) return extracted[0];
-    return lastPlayedSong.artist;
-  })();
-
-  const displayedSimilarArtists = similarArtists.slice(0, SIMILAR_ARTIST_DISPLAY_LIMIT);
-
   useEffect(() => {
     let isMounted = true;
-    const artistField = lastPlayedSong?.artist;
-    if (!artistField) {
-      setSimilarArtists([]);
-      setActiveArtist(null);
-      setArtistSongs([]);
-      setArtistSongsError(null);
-      setSimilarArtistsLoading(false);
-      return;
-    }
-
-    const queries = extractArtistNames(artistField).filter(Boolean);
-    if (queries.length === 0) {
-      setSimilarArtists([]);
-      setActiveArtist(null);
-      setArtistSongs([]);
-      setArtistSongsError(null);
-      setSimilarArtistsLoading(false);
-      return;
-    }
-
-    setSimilarArtistsLoading(true);
-    setSimilarArtists([]);
-    setActiveArtist(null);
-    setArtistSongs([]);
-    setArtistSongsError(null);
-
-    (async () => {
-      const recommended: SimilarArtist[] = [];
-      const seen = new Set<string>();
-      const originalNames = queries.map(name => name.toLowerCase());
+    const fetchTopArtists = async () => {
       try {
-        for (const query of queries.slice(0, 2)) {
-          if (recommended.length >= SIMILAR_ARTIST_FETCH_LIMIT) break;
-          const response = await saavnApi.searchArtists(query, 20);
-          const candidates = response?.data?.results ?? [];
-          for (const candidate of candidates) {
-            if (recommended.length >= SIMILAR_ARTIST_FETCH_LIMIT) break;
-            if (!candidate?.id) continue;
-            if (seen.has(candidate.id)) continue;
-            const candidateName = normalizeArtistName(candidate.name);
-            if (!candidateName) continue;
-            if (originalNames.includes(candidateName.toLowerCase())) continue;
-
-            seen.add(candidate.id);
-            const candidateImages = collectArtistImageSources(candidate);
-            const image = getHighQualityImage(candidateImages);
-
-            recommended.push({
-              id: candidate.id,
-              name: candidateName,
-              image,
-            });
+        setTopArtistsLoading(true);
+        setTopArtistsError(null);
+        
+        // Check cache first
+        const cachedArtists = await getMeta('topArtists');
+        const cachedTimestamp = await getMeta('topArtistsTimestamp');
+        const now = Date.now();
+        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+        const parsedCachedTimestamp = typeof cachedTimestamp === 'number' ? cachedTimestamp : Number(cachedTimestamp);
+        
+        if (Array.isArray(cachedArtists) && Number.isFinite(parsedCachedTimestamp) && (now - parsedCachedTimestamp < CACHE_DURATION)) {
+          if (isMounted) {
+            setTopArtists(cachedArtists);
+            setTopArtistsLoading(false);
           }
+          return;
+        }
+        
+        // Fetch fresh data
+        const response = await saavnApi.searchArtists(TOP_ARTISTS_QUERY, TOP_ARTISTS_SEARCH_LIMIT);
+        const candidates = response?.data?.results ?? [];
+        const curated: ArtistPreview[] = [];
+        const seen = new Set<string>();
+        for (const candidate of candidates) {
+          if (!candidate?.id || seen.has(candidate.id)) continue;
+          seen.add(candidate.id);
+          const normalizedName = normalizeArtistName(candidate.name);
+          if (!normalizedName) continue;
+          const image = getHighQualityImage(collectArtistImageSources(candidate));
+          curated.push({ id: candidate.id, name: normalizedName, image });
+          if (curated.length >= TOP_ARTISTS_LIMIT) break;
+        }
+        
+        // Cache the results
+        await setMeta('topArtists', curated);
+        await setMeta('topArtistsTimestamp', now);
+        
+        if (isMounted) {
+          setTopArtists(curated);
         }
       } catch (error) {
-        console.warn('Failed to load similar artists', error);
+        console.warn('Failed to load top artists', error);
+        if (isMounted) {
+          setTopArtistsError('Unable to load artists right now');
+        }
       } finally {
         if (isMounted) {
-          setSimilarArtists(recommended);
-          setSimilarArtistsLoading(false);
+          setTopArtistsLoading(false);
         }
       }
-    })();
+    };
 
+    fetchTopArtists();
     return () => {
       isMounted = false;
     };
-  }, [lastPlayedSong]);
+  }, []);
 
   const handleSongClick = (song: ChartSongWithSaavn) => {
     if (song.saavnData) {
-      onSongSelect(song.saavnData);
+      // Pass all chart songs as context
+      const allChartSongs = chartSongs.map(cs => cs.saavnData).filter((s): s is Song => s !== null);
+      onSongSelect(song.saavnData, allChartSongs);
     }
   };
 
@@ -466,25 +380,9 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
     }
   };
 
-  const handleSimilarArtistClick = async (artist: SimilarArtist) => {
-    if (!artist) return;
-    setActiveArtist(artist);
-    setArtistSongs([]);
-    setArtistSongsLoading(true);
-    setArtistSongsError(null);
-
-    try {
-      const searchQuery = sanitizeSearchTerm(artist.name);
-      const response = await saavnApi.searchSongs(searchQuery || artist.name, 20);
-      const songs = response?.data?.results ?? [];
-      const mappedSongs = songs.map((song: any) => convertSearchResultToSong(song));
-      setArtistSongs(mappedSongs.slice(0, 6));
-    } catch (error) {
-      console.warn('Failed to load songs for artist', artist.name, error);
-      setArtistSongsError('Unable to load songs right now');
-    } finally {
-      setArtistSongsLoading(false);
-    }
+  const handleArtistCardClick = (artist: ArtistPreview) => {
+    if (!artist?.id) return;
+    onArtistSelect(artist.id, artist.name || 'Artist', artist.image || '');
   };
 
   const getImageUrl = (imageArray: any[]): string => {
@@ -661,198 +559,81 @@ const HomePage: React.FC<HomePageProps> = ({ onSongSelect, chartSongs, chartSong
           )}
         </Box>
 
-        {lastPlayedSong?.artist && (
-          <Box sx={{ mb: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-              <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                Similar artists{similarToLabel ? ` to ${similarToLabel}` : ''}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Curated for you
-              </Typography>
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" sx={{ color: 'text.secondary', mb: 2, fontWeight: 500 }}>
+            Top Artists
+          </Typography>
+          {topArtistsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+              <CircularProgress size={24} sx={{ color: 'primary.main' }} />
             </Box>
-            {similarArtistsLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                <CircularProgress size={24} sx={{ color: 'primary.main' }} />
-              </Box>
-            ) : similarArtists.length > 0 ? (
-              <Box
-                sx={{
-                  display: 'flex',
-                  gap: 2,
-                  overflowX: 'auto',
-                  pb: 1,
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none',
-                  '&::-webkit-scrollbar': {
-                    display: 'none',
-                  },
-                }}
-              >
-                {displayedSimilarArtists.map((artist) => (
-                  <Box
-                    key={artist.id}
-                    component="button"
-                    type="button"
-                    onClick={() => handleSimilarArtistClick(artist)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        handleSimilarArtistClick(artist);
-                      }
-                    }}
-                    aria-label={`Show songs by ${artist.name}`}
-                    tabIndex={0}
+          ) : topArtistsError ? (
+            <Typography variant="body2" color="error">
+              {topArtistsError}
+            </Typography>
+          ) : topArtists.length > 0 ? (
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 2,
+                overflowX: 'auto',
+                pb: 1,
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                '&::-webkit-scrollbar': {
+                  display: 'none',
+                },
+              }}
+            >
+              {topArtists.map((artist) => (
+                <Box
+                  key={artist.id ?? artist.name}
+                  onClick={() => handleArtistCardClick(artist)}
+                  sx={{
+                    minWidth: 140,
+                    maxWidth: 140,
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                    },
+                  }}
+                >
+                  <Avatar
+                    src={artist.image || undefined}
+                    variant="circular"
+                    imgProps={{ loading: 'lazy' }}
                     sx={{
-                      minWidth: 140,
-                      p: 1,
-                      borderRadius: 2,
-                      border: artist.id === activeArtist?.id ? '1px solid' : '1px solid transparent',
-                      borderColor: artist.id === activeArtist?.id ? 'primary.main' : 'divider',
-                      backgroundColor: artist.id === activeArtist?.id ? 'action.selected' : 'transparent',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      flexShrink: 0,
-                      transition: 'transform 0.2s, border-color 0.2s',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 0.5,
-                      color: 'inherit',
-                      '&:focus-visible': {
-                        outline: '2px solid',
-                        outlineColor: 'primary.main',
-                        outlineOffset: '2px',
-                      },
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                      },
+                      width: 140,
+                      height: 140,
+                      mb: 1,
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
                     }}
                   >
-                    <Avatar
-                      src={artist.image || undefined}
-                      variant="rounded"
-                      imgProps={{ loading: 'lazy' }}
-                      sx={{
-                        width: 96,
-                        height: 96,
-                        mb: 1,
-                        bgcolor: 'background.paper',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        fontSize: '1.75rem',
-                      }}
-                    >
-                      <MusicNoteIcon />
-                    </Avatar>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 600,
-                        textAlign: 'center',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {artist.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {artist.id === activeArtist?.id ? 'Selected' : 'Tap to view songs'}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            ) : (
-              <Box sx={{ py: 2 }}>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  No similar artists found right now.
-                </Typography>
-              </Box>
-            )}
-            {activeArtist && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 500 }}>
-                  Songs by {activeArtist.name}
-                </Typography>
-                {artistSongsLoading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                    <CircularProgress size={28} sx={{ color: 'primary.main' }} />
-                  </Box>
-                ) : artistSongs.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    No songs available for {activeArtist.name} right now.
+                    <MusicNoteIcon sx={{ fontSize: 60 }} />
+                  </Avatar>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      color: 'text.primary',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {artist.name}
                   </Typography>
-                ) : (
-                  <List disablePadding>
-                    {artistSongs.map((song) => (
-                      <ListItem
-                        key={song.id}
-                        onClick={() => onSongSelect(song)}
-                        sx={{
-                          borderRadius: 1,
-                          mb: 0.5,
-                          cursor: 'pointer',
-                          '&:hover': {
-                            bgcolor: 'action.hover',
-                          },
-                          p: 0.5,
-                          px: 0,
-                          display: 'flex',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <ListItemAvatar sx={{ minWidth: 56 }}>
-                          <Avatar
-                            src={getHighQualityImage(song.image)}
-                            variant="rounded"
-                            sx={{ width: 48, height: 48 }}
-                          >
-                            <MusicNoteIcon />
-                          </Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={
-                            <Typography
-                              sx={{
-                                fontWeight: 500,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {decodeHtmlEntities(song.name)}
-                            </Typography>
-                          }
-                          secondary={
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color: 'text.secondary',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {decodeHtmlEntities(song.primaryArtists || '')}
-                            </Typography>
-                          }
-                          secondaryTypographyProps={{ component: 'div' }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-                {artistSongsError && (
-                  <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-                    {artistSongsError}
-                  </Typography>
-                )}
-              </Box>
-            )}
-          </Box>
-        )}
+                </Box>
+              ))}
+            </Box>
+          ) : (
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              No artists available right now.
+            </Typography>
+          )}
+        </Box>
 
         {/* Trending Songs Section */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>

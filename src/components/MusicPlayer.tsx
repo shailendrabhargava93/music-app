@@ -71,8 +71,6 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
           justifyContent: 'space-between',
           px: 2,
           py: 1,
-          maxWidth: 'sm',
-          mx: 'auto',
         }}
       >
         {/* Left side: Album art and song info */}

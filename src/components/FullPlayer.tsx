@@ -19,6 +19,9 @@ import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
+import RepeatIcon from '@mui/icons-material/Repeat';
+import RepeatOneIcon from '@mui/icons-material/RepeatOne';
+import ShuffleIcon from '@mui/icons-material/Shuffle';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
@@ -39,10 +42,14 @@ interface FullPlayerProps {
   onTogglePlay?: () => void;
   onNextSong?: () => void;
   onPreviousSong?: () => void;
-  onSongSelect?: (song: Song) => void;
+  onSongSelect?: (song: Song, contextSongs?: Song[]) => void;
   songQueue?: Song[];
   progress?: number;
   onProgressChange?: (progress: number) => void;
+  repeatMode?: 'off' | 'all' | 'one';
+  onRepeatModeChange?: (mode: 'off' | 'all' | 'one') => void;
+  shuffleMode?: boolean;
+  onShuffleModeChange?: (shuffle: boolean) => void;
   // Song details for info popup
   albumId?: string;
   albumName?: string;
@@ -70,6 +77,10 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
   songQueue = [],
   progress: externalProgress = 0,
   onProgressChange,
+  repeatMode = 'off',
+  onRepeatModeChange,
+  shuffleMode = false,
+  onShuffleModeChange,
   albumId,
   albumName,
   label,
@@ -392,6 +403,19 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
           }}
         >
           <IconButton
+            onClick={() => {
+              if (onShuffleModeChange) {
+                onShuffleModeChange(!shuffleMode);
+              }
+            }}
+            sx={{ 
+              color: shuffleMode ? 'primary.main' : 'text.secondary',
+            }}
+            aria-label="shuffle"
+          >
+            <ShuffleIcon sx={{ fontSize: 28 }} />
+          </IconButton>
+          <IconButton
             onClick={onPreviousSong}
             sx={{ color: 'text.primary' }}
             aria-label="previous track"
@@ -424,6 +448,24 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
             aria-label="next track"
           >
             <SkipNextIcon sx={{ fontSize: 40 }} />
+          </IconButton>
+          <IconButton
+            onClick={() => {
+              if (onRepeatModeChange) {
+                const nextMode = repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off';
+                onRepeatModeChange(nextMode);
+              }
+            }}
+            sx={{ 
+              color: repeatMode !== 'off' ? 'primary.main' : 'text.secondary',
+            }}
+            aria-label="repeat"
+          >
+            {repeatMode === 'one' ? (
+              <RepeatOneIcon sx={{ fontSize: 28 }} />
+            ) : (
+              <RepeatIcon sx={{ fontSize: 28 }} />
+            )}
           </IconButton>
         </Box>
 
@@ -468,7 +510,10 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
         loading={suggestionsLoading}
         onSongSelect={(song) => {
           if (onSongSelect) {
-            onSongSelect(song);
+            // When selecting from up next, pass the remaining songs as context
+            const songIndex = upNextSongs.findIndex(s => s.id === song.id);
+            const remainingSongs = songIndex >= 0 ? upNextSongs.slice(songIndex) : [song];
+            onSongSelect(song, remainingSongs);
           }
         }}
       />

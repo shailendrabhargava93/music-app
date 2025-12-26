@@ -2,7 +2,7 @@ import React from 'react';
 import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import SearchIcon from '@mui/icons-material/Search';
-import FavoriteIcon from '@mui/icons-material/Favorite';
+import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import ExploreIcon from '@mui/icons-material/Explore';
 
 interface BottomNavProps {
@@ -67,7 +67,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange, showLabel
         />
         <BottomNavigationAction 
           {...(showLabels && { label: "Library" })}
-          icon={<FavoriteIcon />} 
+          icon={<LibraryMusicIcon />} 
         />
       </BottomNavigation>
     </Paper>

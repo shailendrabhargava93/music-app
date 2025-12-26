@@ -12,7 +12,7 @@ import { FAVOURITE_SONGS_KEY, getMeta, persistFavourites, readFavourites, setMet
 
 interface RecentlyPlayedPageProps {
   onBack: () => void;
-  onSongSelect: (song: Song) => void;
+  onSongSelect: (song: Song, contextSongs?: Song[]) => void;
   onAddToQueue?: (song: Song) => void;
   onPlayNext?: (song: Song) => void;
   onShowSnackbar?: (message: string) => void;
@@ -188,7 +188,7 @@ const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongS
           {recentSongs.map((song) => (
             <ListItem
               key={song.id}
-              onClick={() => onSongSelect(song)}
+              onClick={() => onSongSelect(song, recentSongs)}
               sx={{
                 borderRadius: 1,
                 mb: 0.5,

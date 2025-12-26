@@ -4,11 +4,12 @@ import { Song } from '../types/api';
 const DB_NAME = 'wave-music-db';
 const DB_VERSION = 1;
 
-export type FavouriteKey = 'favouriteSongs' | 'favouriteAlbums' | 'favouritePlaylists';
+export type FavouriteKey = 'favouriteSongs' | 'favouriteAlbums' | 'favouritePlaylists' | 'favouriteArtists';
 
 export const FAVOURITE_SONGS_KEY: FavouriteKey = 'favouriteSongs';
 export const FAVOURITE_ALBUMS_KEY: FavouriteKey = 'favouriteAlbums';
 export const FAVOURITE_PLAYLISTS_KEY: FavouriteKey = 'favouritePlaylists';
+export const FAVOURITE_ARTISTS_KEY: FavouriteKey = 'favouriteArtists';
 
 interface WaveDbSchema extends DBSchema {
   songs: {

@@ -35,7 +35,7 @@ import { Song } from '../types/api';
 import { FAVOURITE_SONGS_KEY, persistFavourites, readFavourites } from '../services/storage';
 
 interface SearchPageProps {
-  onSongSelect: (song: Song) => void;
+  onSongSelect: (song: Song, contextSongs?: Song[]) => void;
   onPlaylistSelect: (playlistId: string, playlistName: string, playlistImage: string) => void;
   onAlbumSelect: (albumId: string, albumName: string, albumImage: string) => void;
   onAddToQueue?: (song: Song) => void;
@@ -520,7 +520,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                     >
                       <ListItemAvatar 
                         sx={{ minWidth: 72, cursor: 'pointer' }}
-                        onClick={() => onSongSelect(song)}
+                        onClick={() => onSongSelect(song, songs)}
                       >
                         <Avatar
                           src={getHighQualityImage(song.image)}
@@ -531,7 +531,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                         </Avatar>
                       </ListItemAvatar>
                       <ListItemText
-                        onClick={() => onSongSelect(song)}
+                        onClick={() => onSongSelect(song, songs)}
                         sx={{ 
                           cursor: 'pointer',
                           mr: 1.5,

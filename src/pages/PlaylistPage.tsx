@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -26,17 +26,39 @@ import {
   FAVOURITE_ALBUMS_KEY,
   FAVOURITE_PLAYLISTS_KEY,
   FAVOURITE_SONGS_KEY,
+  FAVOURITE_ARTISTS_KEY,
   persistFavourites,
   readFavourites,
 } from '../services/storage';
+
+const extractSongsFromArtistResponse = (response: any): any[] => {
+  if (!response) return [];
+  const candidates = [
+    response.data?.results,
+    response.results,
+    response.data?.songs,
+    response.songs,
+    response.data?.tracks,
+    response.tracks,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length > 0) {
+      return candidate;
+    }
+  }
+  if (Array.isArray(response.data)) {
+    return response.data;
+  }
+  return [];
+};
 
 interface PlaylistPageProps {
   playlistId: string;
   playlistName: string;
   playlistImage: string;
   onBack: () => void;
-  onSongSelect: (song: any) => void;
-  type?: 'playlist' | 'album';
+  onSongSelect: (song: any, contextSongs?: any[]) => void;
+  type?: 'playlist' | 'album' | 'artist';
   onAddToQueue?: (song: any) => void;
   onPlayNext?: (song: any) => void;
   onShowSnackbar?: (message: string) => void;
@@ -59,57 +81,24 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
   const [isFavourite, setIsFavourite] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedSong, setSelectedSong] = useState<any>(null);
+  const fetchAbortControllerRef = useRef<AbortController | null>(null);
+  const lastFetchKeyRef = useRef<string>('');
 
-  // Check if playlist/album is in favourites
+  // Check if playlist/album/artist is in favourites
   useEffect(() => {
-    const storageKey = type === 'album' ? FAVOURITE_ALBUMS_KEY : FAVOURITE_PLAYLISTS_KEY;
+    const storageKey = type === 'album' ? FAVOURITE_ALBUMS_KEY : type === 'artist' ? FAVOURITE_ARTISTS_KEY : FAVOURITE_PLAYLISTS_KEY;
     const loadFavourites = async () => {
       try {
         const favourites = await readFavourites(storageKey);
         const exists = favourites.some((item: any) => item.id === playlistId);
         setIsFavourite(exists);
       } catch (error) {
-        console.warn('Unable to load favourites for playlist', error);
+        console.warn('Unable to read favourites for playlist/artist', error);
       }
     };
 
     loadFavourites();
   }, [playlistId, type]);
-
-  const toggleFavourite = async () => {
-    const storageKey = type === 'album' ? FAVOURITE_ALBUMS_KEY : FAVOURITE_PLAYLISTS_KEY;
-    try {
-      const favourites = await readFavourites(storageKey);
-
-      if (isFavourite) {
-        const updated = favourites.filter((item: any) => item.id !== playlistId);
-        setIsFavourite(false);
-        try {
-          await persistFavourites(storageKey, updated);
-        } catch (error) {
-          console.warn('Unable to persist favorite playlist/album', error);
-        }
-      } else {
-        const newFavourite = {
-          id: playlistId,
-          name: playlistName,
-          image: playlistImage,
-          artist: type === 'album' ? 'Various Artists' : '',
-          description: type === 'playlist' ? playlistName : '',
-          addedAt: Date.now(),
-        };
-        const updated = [...favourites, newFavourite];
-        setIsFavourite(true);
-        try {
-          await persistFavourites(storageKey, updated);
-        } catch (error) {
-          console.warn('Unable to persist favorite playlist/album', error);
-        }
-      }
-    } catch (error) {
-      console.warn('Unable to read favourites for playlist', error);
-    }
-  };
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, song: any) => {
     event.stopPropagation();
@@ -163,6 +152,41 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
     handleMenuClose();
   };
 
+  const toggleFavourite = async () => {
+    const storageKey = type === 'album' ? FAVOURITE_ALBUMS_KEY : type === 'artist' ? FAVOURITE_ARTISTS_KEY : FAVOURITE_PLAYLISTS_KEY;
+    try {
+      const favourites = await readFavourites(storageKey);
+
+      if (isFavourite) {
+        const updated = favourites.filter((item: any) => item.id !== playlistId);
+        setIsFavourite(false);
+        try {
+          await persistFavourites(storageKey, updated);
+        } catch (error) {
+          console.warn('Unable to persist favorite', error);
+        }
+      } else {
+        const newFavourite = {
+          id: playlistId,
+          name: playlistName,
+          image: playlistImage,
+          artist: type === 'album' ? 'Various Artists' : type === 'artist' ? 'Artist' : '',
+          description: type === 'playlist' ? playlistName : '',
+          addedAt: Date.now(),
+        };
+        const updated = [...favourites, newFavourite];
+        setIsFavourite(true);
+        try {
+          await persistFavourites(storageKey, updated);
+        } catch (error) {
+          console.warn('Unable to persist favorite', error);
+        }
+      }
+    } catch (error) {
+      console.warn('Unable to read favourites for playlist/artist', error);
+    }
+  };
+
   // Decode HTML entities in strings
   const decodeHtmlEntities = (text: string): string => {
     if (!text) return text;
@@ -181,29 +205,66 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
     // Scroll to top when component mounts
     window.scrollTo(0, 0);
     
+    // Create a unique key for this fetch request
+    const fetchKey = `${playlistId}-${type}`;
+    
+    // Skip if we already have an active fetch for this exact data
+    if (lastFetchKeyRef.current === fetchKey && fetchAbortControllerRef.current) {
+      return;
+    }
+    
+    // Cancel any previous request
+    if (fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort();
+    }
+    
+    const abortController = new AbortController();
+    fetchAbortControllerRef.current = abortController;
+    lastFetchKeyRef.current = fetchKey;
+    let isMounted = true;
+    
     const fetchPlaylist = async () => {
       try {
         setLoading(true);
         setError(false);
         
-        const response = type === 'album' 
-          ? await saavnApi.getAlbumById(playlistId)
-          : await saavnApi.getPlaylistById(playlistId);
-        
-        if (response.success && response.data) {
+        let response: any;
+        if (type === 'album') {
+          response = await saavnApi.getAlbumById(playlistId);
+        } else if (type === 'artist') {
+          response = await saavnApi.getArtistSongs(playlistId);
+        } else {
+          response = await saavnApi.getPlaylistById(playlistId);
+        }
+
+        if (!isMounted || abortController.signal.aborted) return;
+
+        if (type === 'artist') {
+          const artistSongs = extractSongsFromArtistResponse(response);
+          setSongs(artistSongs);
+        } else if (response?.success && response.data) {
           const playlistSongs = response.data.songs || [];
           setSongs(playlistSongs);
         } else {
           setError(true);
         }
       } catch (err) {
-        setError(true);
+        if (isMounted && !abortController.signal.aborted) {
+          setError(true);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted && !abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchPlaylist();
+    return () => {
+      isMounted = false;
+      abortController.abort();
+      fetchAbortControllerRef.current = null;
+    };
   }, [playlistId, type]);
 
   const getHighQualityImage = (images: Array<{ quality: string; url: string }>) => {
@@ -300,7 +361,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
             <IconButton
               onClick={() => {
                 if (songs.length > 0) {
-                  onSongSelect(songs[0]);
+                  onSongSelect(songs[0], songs);
                 }
               }}
               sx={{
@@ -403,7 +464,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
               >
                 <ListItemAvatar 
                   sx={{ minWidth: 72, cursor: 'pointer' }}
-                  onClick={() => onSongSelect(song)}
+                  onClick={() => onSongSelect(song, songs)}
                 >
                   <Avatar
                     src={getHighQualityImage(song.image)}
@@ -414,7 +475,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  onClick={() => onSongSelect(song)}
+                  onClick={() => onSongSelect(song, songs)}
                   sx={{ 
                     cursor: 'pointer',
                     mr: 1.5,

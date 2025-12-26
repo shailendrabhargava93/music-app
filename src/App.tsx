@@ -95,6 +95,19 @@ function App() {
   
   // Queue management
   const [songQueue, setSongQueue] = useState<Song[]>([]);
+  const [currentContextSongs, setCurrentContextSongs] = useState<Song[]>([]);
+  
+  // Repeat mode: 'off' | 'all' | 'one'
+  const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>(() => {
+    const saved = localStorage.getItem('repeatMode');
+    return (saved === 'all' || saved === 'one') ? saved : 'off';
+  });
+  
+  // Shuffle mode
+  const [shuffleMode, setShuffleMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('shuffleMode');
+    return saved === 'true';
+  });
   
   // Snackbar state
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -188,7 +201,7 @@ function App() {
     id: string;
     name: string;
     image: string;
-    type?: 'playlist' | 'album';
+    type?: 'playlist' | 'album' | 'artist';
     sourceTab?: string;
   } | null>(null);
   
@@ -347,6 +360,16 @@ function App() {
     });
   }, [currentSong, songProgress, songQueue, activeTab, isPlaying]);
 
+  // Save repeat mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('repeatMode', repeatMode);
+  }, [repeatMode]);
+
+  // Save shuffle mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('shuffleMode', String(shuffleMode));
+  }, [shuffleMode]);
+
   const searchSongOnSaavn = async (item: SoundChartsItem): Promise<Song | undefined> => {
     try {
       // Normalize text for better comparison
@@ -503,10 +526,21 @@ function App() {
   };
 
   // Decode HTML entities in strings
-  const handleSongSelect = async (song: Song) => {
+  const handleSongSelect = async (song: Song, contextSongs?: Song[]) => {
     try {
       // Set loading state
       setIsLoadingSong(true);
+      
+      // If contextSongs provided, populate queue with remaining songs
+      if (contextSongs && contextSongs.length > 0) {
+        setCurrentContextSongs(contextSongs);
+        const currentIndex = contextSongs.findIndex(s => s.id === song.id);
+        if (currentIndex !== -1) {
+          // Add all songs after the selected one to the queue
+          const remainingSongs = contextSongs.slice(currentIndex + 1);
+          setSongQueue(remainingSongs);
+        }
+      }
       
       // Fetch complete song details with download URLs
       const songDetailsResponse = await saavnApi.getSongsByIds([song.id]);
@@ -647,18 +681,46 @@ function App() {
     }
   };
 
-  const handleProgressSeek = (newTime: number) => {
+  const handleProgressSeek = useCallback((newTime: number) => {
     setSongProgress(newTime);
     audio.currentTime = newTime;
-  };
+  }, [audio]);
 
-  const handleNextSong = () => {
+  const handleNextSong = useCallback(() => {
     // Check if there's a song in the queue first
-    if (handleNextSongFromQueue()) {
+    if (songQueue.length > 0) {
+      const [nextSong, ...remainingQueue] = songQueue;
+      setSongQueue(remainingQueue);
+      handleSongSelect(nextSong);
       return;
     }
     
-    // Otherwise, play from chart songs
+    // Try to play next from current context
+    if (currentContextSongs.length > 0 && currentSong) {
+      const currentIndex = currentContextSongs.findIndex(s => s.id === currentSong.id);
+      
+      if (shuffleMode) {
+        // Shuffle: pick a random song from context (excluding current)
+        const availableSongs = currentContextSongs.filter(s => s.id !== currentSong.id);
+        if (availableSongs.length > 0) {
+          const randomIndex = Math.floor(Math.random() * availableSongs.length);
+          handleSongSelect(availableSongs[randomIndex], currentContextSongs);
+          return;
+        }
+      }
+      
+      if (currentIndex >= 0 && currentIndex < currentContextSongs.length - 1) {
+        const nextSong = currentContextSongs[currentIndex + 1];
+        handleSongSelect(nextSong, currentContextSongs);
+        return;
+      } else if (repeatMode === 'all' && currentIndex === currentContextSongs.length - 1) {
+        // Loop back to first song in context
+        handleSongSelect(currentContextSongs[0], currentContextSongs);
+        return;
+      }
+    }
+    
+    // Otherwise, play from chart songs as fallback
     if (chartSongs.length === 0) return;
     
     // Find current song index in chartSongs
@@ -675,9 +737,20 @@ function App() {
     if (nextChartSong?.saavnData) {
       handleSongSelect(nextChartSong.saavnData);
     }
-  };
+  }, [songQueue, currentContextSongs, currentSong, shuffleMode, repeatMode, chartSongs]);
 
-  const handlePreviousSong = () => {
+  const handlePreviousSong = useCallback(() => {
+    // Try from current context first
+    if (currentContextSongs.length > 0 && currentSong) {
+      const currentIndex = currentContextSongs.findIndex(s => s.id === currentSong.id);
+      if (currentIndex > 0) {
+        const previousSong = currentContextSongs[currentIndex - 1];
+        handleSongSelect(previousSong, currentContextSongs);
+        return;
+      }
+    }
+    
+    // Fallback to chart songs
     if (chartSongs.length === 0) return;
     
     // Find current song index in chartSongs
@@ -694,10 +767,14 @@ function App() {
     if (previousChartSong?.saavnData) {
       handleSongSelect(previousChartSong.saavnData);
     }
-  };
+  }, [currentContextSongs, currentSong, chartSongs]);
 
   const handlePlaylistSelect = (playlistId: string, playlistName: string, playlistImage: string) => {
     setSelectedPlaylist({ id: playlistId, name: playlistName, image: playlistImage, type: 'playlist', sourceTab: activeTab });
+  };
+
+  const handleArtistSelect = (artistId: string, artistName: string, artistImage: string) => {
+    setSelectedPlaylist({ id: artistId, name: artistName, image: artistImage, type: 'artist', sourceTab: activeTab });
   };
 
   const handleAlbumSelect = (albumId: string, albumName: string, albumImage: string) => {
@@ -834,16 +911,6 @@ function App() {
     setSnackbarOpen(true);
   };
 
-  const handleNextSongFromQueue = () => {
-    if (songQueue.length > 0) {
-      const [nextSong, ...remainingQueue] = songQueue;
-      setSongQueue(remainingQueue);
-      handleSongSelect(nextSong);
-      return true;
-    }
-    return false;
-  };
-
   // Sync audio source when song changes
   useEffect(() => {
     if (!currentSong || !currentSong.downloadUrl) {
@@ -877,7 +944,13 @@ function App() {
 
     const handleEnded = () => {
       setSongProgress(0);
-      handleNextSong();
+      if (repeatMode === 'one') {
+        // Repeat current song
+        audio.currentTime = 0;
+        audio.play();
+      } else {
+        handleNextSong();
+      }
     };
 
     audio.addEventListener('timeupdate', updateProgress);
@@ -989,6 +1062,7 @@ function App() {
             onViewAllCharts={handleViewAllCharts}
             onAlbumSelect={handleAlbumSelect}
             onPlaylistSelect={handlePlaylistSelect}
+            onArtistSelect={handleArtistSelect}
             onRecentlyPlayedClick={handleRecentlyPlayedClick}
             onSettingsClick={handleSettingsClick}
             onPlayNext={handlePlayNext}
@@ -997,7 +1071,6 @@ function App() {
               setSnackbarMessage(msg);
               setSnackbarOpen(true);
             }}
-            lastPlayedSong={currentSong}
           />
         );
       case 'explore':
@@ -1034,6 +1107,9 @@ function App() {
         return (
           <FavouritesPage 
             onSongSelect={handleFavouriteSongSelect}
+            onAlbumSelect={handleAlbumSelect}
+            onPlaylistSelect={handlePlaylistSelect}
+            onArtistSelect={handleArtistSelect}
           />
         );
       default:
@@ -1092,6 +1168,10 @@ function App() {
                 songQueue={songQueue}
                 progress={songProgress}
                 onProgressChange={handleProgressSeek}
+                repeatMode={repeatMode}
+                onRepeatModeChange={setRepeatMode}
+                shuffleMode={shuffleMode}
+                onShuffleModeChange={setShuffleMode}
                 // Song details for info popup
                 albumId={currentSong.albumId}
                 albumName={currentSong.albumName}
