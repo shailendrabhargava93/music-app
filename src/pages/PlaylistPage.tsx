@@ -6,21 +6,20 @@ import {
   IconButton,
   CircularProgress,
   List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
   Menu,
   MenuItem,
   ListItemIcon,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import SongListItem from '../components/SongListItem';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import ShuffleIcon from '@mui/icons-material/Shuffle';
 import { saavnApi } from '../services/saavnApi';
 import {
   FAVOURITE_ALBUMS_KEY,
@@ -187,6 +186,20 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
     }
   };
 
+  const handleShufflePlay = () => {
+    if (!songs || songs.length === 0) return;
+    // Fisher-Yates shuffle
+    const shuffled = [...songs];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    // Start playback with the first song of shuffled list
+    if (onSongSelect) {
+      onSongSelect(shuffled[0], shuffled);
+    }
+  };
+
   // Decode HTML entities in strings
   const decodeHtmlEntities = (text: string): string => {
     if (!text) return text;
@@ -286,11 +299,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
     return 'Unknown Artist';
   };
 
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  
 
   return (
     <Box sx={{ pb: 14, minHeight: '100vh', pt: 0 }}>
@@ -358,38 +367,59 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
         </Typography>
         <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mb: 0.5 }}>
           {songs.length > 0 && (
-            <IconButton
-              onClick={() => {
-                if (songs.length > 0) {
-                  onSongSelect(songs[0], songs);
-                }
-              }}
-              sx={{
-                bgcolor: 'primary.main',
-                color: 'white',
-                width: 48,
-                height: 48,
-                '&:hover': {
-                  bgcolor: 'primary.dark',
-                },
-              }}
-            >
-              <PlayArrowIcon sx={{ fontSize: 28 }} />
-            </IconButton>
+            <>
+              {/* shared lighter button style for shuffle and favourite */}
+              <IconButton
+                onClick={handleShufflePlay}
+                sx={(theme) => ({
+                  bgcolor: theme.palette.mode === 'dark' ? 'action.selected' : 'action.hover',
+                  color: 'text.secondary',
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  '&:hover': {
+                    bgcolor: theme.palette.action.selected,
+                  },
+                })}
+                aria-label="shuffle"
+                title="Shuffle Play"
+              >
+                <ShuffleIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                onClick={() => {
+                  if (songs.length > 0) {
+                    onSongSelect(songs[0], songs);
+                  }
+                }}
+                sx={{
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  width: 48,
+                  height: 48,
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                  },
+                }}
+              >
+                <PlayArrowIcon sx={{ fontSize: 28 }} />
+              </IconButton>
+            </>
           )}
           <IconButton
             onClick={toggleFavourite}
-            sx={{
-              bgcolor: isFavourite ? 'rgba(255, 82, 82, 0.1)' : 'action.hover',
+            sx={(theme) => ({
+              bgcolor: isFavourite ? 'rgba(255, 82, 82, 0.08)' : (theme.palette.mode === 'dark' ? 'action.selected' : 'action.hover'),
               color: isFavourite ? 'error.main' : 'text.secondary',
               width: 36,
               height: 36,
+              borderRadius: '50%',
               '&:hover': {
-                bgcolor: isFavourite ? 'rgba(255, 82, 82, 0.2)' : 'action.selected',
+                bgcolor: isFavourite ? 'rgba(255, 82, 82, 0.16)' : theme.palette.action.selected,
               },
-            }}
+            })}
           >
-            {isFavourite ? <FavoriteIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
+            {isFavourite ? <FavoriteIcon fontSize="small" sx={{ color: 'error.main' }} /> : <FavoriteBorderIcon fontSize="small" />}
           </IconButton>
         </Box>
       </Box>
@@ -440,18 +470,13 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
         <Box sx={{ px: 1 }}>
           <List sx={{ bgcolor: 'transparent', p: 0 }}>
             {songs.map((song, index) => (
-              <ListItem
+              <SongListItem
                 key={song.id || index}
-                sx={{
-                  cursor: 'pointer',
-                  borderRadius: 1,
-                  px: 1,
-                  py: 0.5,
-                  mb: 0.5,
-                  '&:hover': {
-                    bgcolor: 'action.hover',
-                  },
-                }}
+                title={decodeHtmlEntities(song.name)}
+                artist={decodeHtmlEntities(getArtistNames(song))}
+                
+                avatarSrc={getHighQualityImage(song.image)}
+                onClick={() => onSongSelect(song, songs)}
                 secondaryAction={
                   <IconButton
                     edge="end"
@@ -461,64 +486,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
                     <MoreVertIcon />
                   </IconButton>
                 }
-              >
-                <ListItemAvatar 
-                  sx={{ minWidth: 72, cursor: 'pointer' }}
-                  onClick={() => onSongSelect(song, songs)}
-                >
-                  <Avatar
-                    src={getHighQualityImage(song.image)}
-                    variant="rounded"
-                    sx={{ width: 56, height: 56 }}
-                  >
-                    <MusicNoteIcon />
-                  </Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  onClick={() => onSongSelect(song, songs)}
-                  sx={{ 
-                    cursor: 'pointer',
-                    mr: 1.5,
-                    pr: 0.5,
-                    minWidth: 0,
-                    flex: 1
-                  }}
-                  primary={
-                    <Typography
-                      sx={{
-                        color: 'text.primary',
-                        fontWeight: 500,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {decodeHtmlEntities(song.name)}
-                    </Typography>
-                  }
-                  secondary={
-                    <Box>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: 'text.secondary',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {decodeHtmlEntities(getArtistNames(song))}
-                      </Typography>
-                      {song.duration && (
-                        <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                          {formatDuration(song.duration)}
-                        </Typography>
-                      )}
-                    </Box>
-                  }
-                  secondaryTypographyProps={{ component: 'div' }}
-                />
-              </ListItem>
+              />
             ))}
           </List>
 

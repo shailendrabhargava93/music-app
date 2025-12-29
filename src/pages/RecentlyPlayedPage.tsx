@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, List, ListItem, ListItemAvatar, Avatar, ListItemText, IconButton, Menu, MenuItem, ListItemIcon } from '@mui/material';
+import { Box, Typography, List, IconButton, Menu, MenuItem, ListItemIcon } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -8,6 +8,7 @@ import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
 import { Song } from '../types/api';
+import SongListItem from '../components/SongListItem';
 import { FAVOURITE_SONGS_KEY, getMeta, persistFavourites, readFavourites, setMeta } from '../services/storage';
 
 interface RecentlyPlayedPageProps {
@@ -131,7 +132,7 @@ const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongS
   };
 
   return (
-    <Box sx={{ pb: 10, pt: 0 }}>
+    <Box sx={{ pb: 14, pt: 0 }}>
       {/* Sticky header */}
       <Box
         sx={(theme) => ({
@@ -186,54 +187,21 @@ const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongS
       ) : (
         <List sx={{ px: 2 }}>
           {recentSongs.map((song) => (
-            <ListItem
+            <SongListItem
               key={song.id}
+              title={decodeHtmlEntities(song.name)}
+              artist={decodeHtmlEntities(song.primaryArtists || 'Unknown Artist')}
+              avatarSrc={getImageUrl(song.image)}
               onClick={() => onSongSelect(song, recentSongs)}
-              sx={{
-                borderRadius: 1,
-                mb: 0.5,
-                px: 1,
-                py: 0.5,
-                cursor: 'pointer',
-                '&:hover': {
-                  backgroundColor: 'action.hover',
-                },
-              }}
-            >
-              <ListItemAvatar>
-                <Avatar
-                  src={getImageUrl(song.image)}
-                  alt={song.name}
-                  variant="rounded"
-                  sx={{ width: 56, height: 56 }}
-                />
-              </ListItemAvatar>
-              <ListItemText
-                primary={decodeHtmlEntities(song.name)}
-                secondary={decodeHtmlEntities(song.primaryArtists || 'Unknown Artist')}
-                sx={{
-                  ml: 2,
-                  mr: 1.5,
-                  pr: 0.5,
-                  '& .MuiListItemText-primary': {
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  },
-                  '& .MuiListItemText-secondary': {
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  },
-                }}
-              />
-              <IconButton
-                edge="end"
-                onClick={(e) => handleMenuOpen(e, song)}
-              >
-                <MoreVertIcon />
-              </IconButton>
-            </ListItem>
+              secondaryAction={
+                <IconButton
+                  edge="end"
+                  onClick={(e) => handleMenuOpen(e, song)}
+                >
+                  <MoreVertIcon />
+                </IconButton>
+              }
+            />
           ))}
         </List>
       )}

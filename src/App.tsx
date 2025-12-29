@@ -18,6 +18,7 @@ import { saavnApi } from './services/saavnApi';
 import { soundChartsApi, SoundChartsItem } from './services/soundChartsApi';
 import SearchPage from './pages/SearchPage';
 import { saveSongMetadata, saveDownloadRecord, setMeta, getDownloadRecord, getMeta, migrateLocalStorage } from './services/storage';
+import { subscribeNetworkStatus } from './services/networkStatus';
 
 const decodeHtmlEntities = (text: string): string => {
   if (!text) return text;
@@ -168,6 +169,19 @@ function App() {
     migrateLocalStorage();
   }, []);
 
+  // Subscribe to API/network failure messages and show snackbars
+  useEffect(() => {
+    const unsub = subscribeNetworkStatus((s) => {
+      if (s.message) {
+        setSnackbarMessage(s.message);
+        setSnackbarOpen(true);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  
+
   useEffect(() => {
     const restoreSession = async () => {
       const lastSession = await getMeta('lastSession') as SessionData | undefined;
@@ -207,6 +221,101 @@ function App() {
   
   // View All Chart Songs state
   const [showAllCharts, setShowAllCharts] = useState(false);
+
+  // Manage browser history entries so mobile back gesture/popstate
+  // closes in-app overlays (playlist, charts, recently played, full player)
+  // instead of closing the PWA / navigating away.
+  useEffect(() => {
+    // Ensure there's an app-specific history entry we control
+    try {
+      const initialState = { app: 'wave', view: 'home' };
+      // Replace any external state with our initial app state and then
+      // push one so there's a safe entry to return to when user navigates back.
+      window.history.replaceState(initialState, '');
+      window.history.pushState(initialState, '');
+    } catch (err) {
+      console.debug('History initialization failed', err);
+    }
+
+    const onPopState = (ev: PopStateEvent) => {
+      const state = ev.state as any;
+      // If this is our app's state object, map it to app UI state
+      if (state && state.app === 'wave') {
+        const view = state.view as string | undefined;
+        // When popping back to home view, close overlays
+        if (!view || view === 'home') {
+          setSelectedPlaylist(null);
+          setShowAllCharts(false);
+          setShowRecentlyPlayed(false);
+          setFullPlayerOpen(false);
+          setActiveTab('home');
+        } else if (view === 'playlist') {
+          // If state indicates playlist view we don't automatically open a playlist
+          // because that requires knowing which playlist; leave current UI as-is.
+        } else if (view === 'charts') {
+          setShowAllCharts(true);
+        } else if (view === 'recent') {
+          setShowRecentlyPlayed(true);
+        } else if (view === 'fullplayer') {
+          setFullPlayerOpen(true);
+        }
+      } else {
+        // If the popped state is not ours, re-insert a home state to avoid exiting
+        try {
+          const home = { app: 'wave', view: 'home' };
+          window.history.replaceState(home, '');
+        } catch (err) {
+          // ignore
+        }
+      }
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+    };
+  }, []);
+
+  // Push history entries whenever one of these overlays or views is opened
+  useEffect(() => {
+    try {
+      if (selectedPlaylist) {
+        window.history.pushState({ app: 'wave', view: 'playlist', id: selectedPlaylist.id }, '');
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [selectedPlaylist]);
+
+  useEffect(() => {
+    try {
+      if (showAllCharts) {
+        window.history.pushState({ app: 'wave', view: 'charts' }, '');
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [showAllCharts]);
+
+  useEffect(() => {
+    try {
+      if (showRecentlyPlayed) {
+        window.history.pushState({ app: 'wave', view: 'recent' }, '');
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [showRecentlyPlayed]);
+
+  useEffect(() => {
+    try {
+      if (fullPlayerOpen) {
+        window.history.pushState({ app: 'wave', view: 'fullplayer' }, '');
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [fullPlayerOpen]);
   
   // Global state for chart songs - persists across tab switches
   const [chartSongs, setChartSongs] = useState<ChartSongWithSaavn[]>([]);
@@ -1120,6 +1229,8 @@ function App() {
   return (
     <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
       <CssBaseline />
+      {/* Small offline / fetch failure indicator at bottom */}
+      {/* Offline banner moved into BottomNav to keep it visible across all screens */}
       {showWelcome ? (
         <WelcomeScreen onGetStarted={handleGetStarted} />
       ) : (

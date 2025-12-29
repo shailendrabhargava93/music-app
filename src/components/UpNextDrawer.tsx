@@ -4,16 +4,13 @@ import {
   Box,
   Typography,
   List,
-  ListItem,
-  ListItemAvatar,
-  Avatar,
-  ListItemText,
   IconButton,
   CircularProgress,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import { Song } from '../types/api';
+import SongListItem from './SongListItem';
 
 interface UpNextDrawerProps {
   open: boolean;
@@ -30,7 +27,9 @@ const UpNextDrawer: React.FC<UpNextDrawerProps> = ({
   loading,
   onSongSelect,
 }) => {
-  const getHighQualityImage = (images: Array<{ quality: string; url?: string; link?: string }>) => {
+  const getHighQualityImage = (
+    images: Array<{ quality: string; url?: string; link?: string }>
+  ) => {
     if (!images || images.length === 0) return '';
     const qualities = ['500x500', '150x150', '50x50'];
     for (const quality of qualities) {
@@ -50,33 +49,44 @@ const UpNextDrawer: React.FC<UpNextDrawerProps> = ({
       anchor="bottom"
       open={open}
       onClose={onClose}
-      sx={{
-        '& .MuiDrawer-paper': {
+      PaperProps={{
+        sx: {
+          borderRadius: '16px 16px 0 0',
           maxHeight: '70vh',
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
           bgcolor: 'background.paper',
+          display: 'flex',
+          flexDirection: 'column',
         },
       }}
     >
-      <Box sx={{ p: 2 }}>
-        {/* Header */}
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            mb: 2,
-          }}
+      {/* Sticky Header (fixed, like Details drawer) */}
+      <Box
+        sx={{
+          bgcolor: 'background.default',
+          color: 'text.primary',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          p: 2,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+          Up Next
+        </Typography>
+        <IconButton
+          onClick={onClose}
+          size="small"
+          sx={{ color: 'text.secondary' }}
+          aria-label="close"
         >
-          <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
-            Up Next
-          </Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
+          <CloseIcon />
+        </IconButton>
+      </Box>
 
+      {/* Scrollable Content */}
+      <Box sx={{ p: 1.25, maxHeight: '60vh', overflowY: 'auto' }}>
         {/* Loading State */}
         {loading && (
           <Box
@@ -98,68 +108,20 @@ const UpNextDrawer: React.FC<UpNextDrawerProps> = ({
         {/* Suggestions List */}
         {!loading && suggestions.length > 0 && (
           <List sx={{ p: 0 }}>
-            {suggestions.filter(song => song && song.id).map((song, index) => (
-              <ListItem
+            {suggestions.filter((song) => song && song.id).map((song, index) => (
+              <SongListItem
                 key={song.id || index}
+                title={song.name || 'Unknown Song'}
+                artist={(() => {
+                  const songAny = song as any;
+                  if (songAny.artists?.primary && Array.isArray(songAny.artists.primary)) {
+                    return songAny.artists.primary.map((artist: any) => artist.name).join(', ');
+                  }
+                  return song.primaryArtists || 'Unknown Artist';
+                })()}
+                avatarSrc={song.image ? getHighQualityImage(song.image) : ''}
                 onClick={() => handleSongClick(song)}
-                sx={{
-                  cursor: 'pointer',
-                  borderRadius: 1,
-                  mb: 0.5,
-                  px: 1,
-                  py: 1.5,
-                  '&:hover': {
-                    bgcolor: (theme) =>
-                      theme.palette.mode === 'light'
-                        ? 'rgba(0, 188, 212, 0.08)'
-                        : 'rgba(255, 255, 255, 0.05)',
-                  },
-                }}
-              >
-                <ListItemAvatar sx={{ minWidth: 60 }}>
-                  <Avatar
-                    src={song.image ? getHighQualityImage(song.image) : ''}
-                    variant="rounded"
-                    sx={{ width: 48, height: 48 }}
-                  >
-                    <MusicNoteIcon />
-                  </Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={
-                    <Typography
-                      sx={{
-                        color: 'text.primary',
-                        fontWeight: 500,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {song.name || 'Unknown Song'}
-                    </Typography>
-                  }
-                  secondary={
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: 'text.secondary',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {(() => {
-                        const songAny = song as any;
-                        if (songAny.artists?.primary && Array.isArray(songAny.artists.primary)) {
-                          return songAny.artists.primary.map((artist: any) => artist.name).join(', ');
-                        }
-                        return song.primaryArtists || 'Unknown Artist';
-                      })()}
-                    </Typography>
-                  }
-                />
-              </ListItem>
+              />
             ))}
           </List>
         )}

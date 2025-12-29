@@ -144,7 +144,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
           Settings
         </Typography>
       </Box>
-      <Container maxWidth="md" sx={{ px: { xs: 0, sm: 2 }, pt: 0 }}>
+      <Container maxWidth="sm" sx={{ px: { xs: 2, sm: 3 }, pt: 0 }}>
         <Paper 
           elevation={0}
           sx={{ 
@@ -158,7 +158,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             <ListItem
               sx={{
                 py: 2,
-                px: 3,
+                px: { xs: 2, sm: 3 },
                 '&:hover': {
                   bgcolor: 'action.hover'
                 },
@@ -170,7 +170,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: 2,
-                  flex: 1
+                  flex: 1,
+                  minWidth: 0
                 }}
               >
                 {isDarkMode ? (
@@ -219,7 +220,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             <ListItem
               sx={{
                 py: 2,
-                px: 3,
+                px: { xs: 2, sm: 3 },
                 '&:hover': {
                   bgcolor: 'action.hover'
                 },
@@ -231,7 +232,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: 2,
-                  flex: 1
+                  flex: 1,
+                  minWidth: 0
                 }}
               >
                 <LabelOffIcon sx={{ color: 'primary.main' }} />
@@ -277,7 +279,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
               onClick={() => setQualityDrawerOpen(true)}
               sx={{
                 py: 2,
-                px: 3,
+                px: { xs: 2, sm: 3 },
                 cursor: 'pointer',
                 '&:hover': {
                   bgcolor: 'action.hover'
@@ -290,7 +292,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: 2,
-                  flex: 1
+                  flex: 1,
+                  minWidth: 0
                 }}
               >
                 <HighQualityIcon sx={{ color: 'primary.main' }} />
@@ -331,7 +334,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
               onClick={handleShare}
               sx={{
                 py: 2,
-                px: 3,
+                px: { xs: 2, sm: 3 },
                 cursor: 'pointer',
                 '&:hover': {
                   bgcolor: 'action.hover'
@@ -344,7 +347,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: 2,
-                  flex: 1
+                  flex: 1,
+                  minWidth: 0
                 }}
               >
                 <ShareIcon sx={{ color: 'primary.main' }} />
@@ -384,7 +388,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
               onClick={handleClearSearchHistory}
               sx={{
                 py: 2,
-                px: 3,
+                px: { xs: 2, sm: 3 },
                 cursor: 'pointer',
                 '&:hover': {
                   bgcolor: 'action.hover'
@@ -397,7 +401,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: 2,
-                  flex: 1
+                  flex: 1,
+                  minWidth: 0
                 }}
               >
                 <DeleteSweepIcon sx={{ color: 'primary.main' }} />
@@ -430,7 +435,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             <ListItem
               sx={{
                 py: 2,
-                px: 3
+                px: { xs: 2, sm: 3 }
               }}
             >
               <Box 
@@ -438,7 +443,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: 2,
-                  flex: 1
+                  flex: 1,
+                  minWidth: 0
                 }}
               >
                 <InfoOutlinedIcon sx={{ color: 'primary.main' }} />

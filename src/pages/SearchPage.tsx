@@ -27,6 +27,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import SongListItem from '../components/SongListItem';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -252,11 +253,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
     return 'Unknown Artist';
   };
 
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, song: any) => {
     event.stopPropagation();
@@ -318,7 +315,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
   };
 
   return (
-    <Box sx={{ pb: 10, px: 2, pt: 2 }}>
+    <Box sx={{ pb: 14, px: 2, pt: 2 }}>
       {/* Search Input */}
       <TextField
         fullWidth
@@ -494,20 +491,15 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                   </Typography>
                 </Box>
               ) : (
-                <List sx={{ bgcolor: 'transparent', p: 0 }}>
+                <List sx={{ bgcolor: 'transparent', p: 0, pb: 2 }}>
                   {songs.map((song) => (
-                    <ListItem
+                    <SongListItem
                       key={song.id}
-                      sx={{
-                        cursor: 'pointer',
-                        borderRadius: 1,
-                        px: 1,
-                        py: 0.5,
-                        mb: 0.5,
-                        '&:hover': {
-                          bgcolor: 'action.hover',
-                        },
-                      }}
+                      title={decodeHtmlEntities(song.name)}
+                      artist={decodeHtmlEntities(getArtistNames(song))}
+                      
+                      avatarSrc={getHighQualityImage(song.image)}
+                      onClick={() => onSongSelect(song, songs)}
                       secondaryAction={
                         <IconButton
                           edge="end"
@@ -517,62 +509,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                           <MoreVertIcon />
                         </IconButton>
                       }
-                    >
-                      <ListItemAvatar 
-                        sx={{ minWidth: 72, cursor: 'pointer' }}
-                        onClick={() => onSongSelect(song, songs)}
-                      >
-                        <Avatar
-                          src={getHighQualityImage(song.image)}
-                          variant="rounded"
-                          sx={{ width: 56, height: 56 }}
-                        >
-                          <MusicNoteIcon />
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        onClick={() => onSongSelect(song, songs)}
-                        sx={{ 
-                          cursor: 'pointer',
-                          mr: 1.5,
-                          pr: 0.5,
-                          minWidth: 0,
-                          flex: 1
-                        }}
-                        primary={
-                          <Typography
-                            sx={{
-                              color: 'text.primary',
-                              fontWeight: 500,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {decodeHtmlEntities(song.name)}
-                          </Typography>
-                        }
-                        secondary={
-                          <Box>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color: 'text.secondary',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {decodeHtmlEntities(getArtistNames(song))}
-                            </Typography>
-                            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                              {decodeHtmlEntities(song.album?.name || 'Unknown Album')} • {formatDuration(song.duration)}
-                            </Typography>
-                          </Box>
-                        }
-                        secondaryTypographyProps={{ component: 'div' }}
-                      />
-                    </ListItem>
+                    />
                   ))}
                 </List>
               )}
@@ -599,7 +536,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                   </Typography>
                 </Box>
               ) : (
-                <List sx={{ bgcolor: 'transparent', p: 0 }}>
+                <List sx={{ bgcolor: 'transparent', p: 0, pb: 2 }}>
                   {albums.map((album) => (
                     <ListItem
                       key={album.id}
@@ -679,7 +616,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                   </Typography>
                 </Box>
               ) : (
-                <List sx={{ bgcolor: 'transparent', p: 0 }}>
+                <List sx={{ bgcolor: 'transparent', p: 0, pb: 2 }}>
                   {playlists.map((playlist) => (
                     <ListItem
                       key={playlist.id}

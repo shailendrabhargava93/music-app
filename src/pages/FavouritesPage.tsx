@@ -22,6 +22,7 @@ import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
 import PersonIcon from '@mui/icons-material/Person';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import SongListItem from '../components/SongListItem';
 import {
   FAVOURITE_ALBUMS_KEY,
   FAVOURITE_PLAYLISTS_KEY,
@@ -326,17 +327,13 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
             ) : (
               <List sx={{ px: 0 }}>
                 {favourites.map((song) => (
-                  <ListItem
+                  <SongListItem
                     key={song.id}
-                    sx={{
-                      borderRadius: 1,
-                      mb: 0.5,
-                        px: 0,
-                      py: 0.5,
-                      '&:hover': {
-                        bgcolor: 'action.hover',
-                      },
-                    }}
+                    title={decodeHtmlEntities(song.name)}
+                    artist={decodeHtmlEntities(song.artist)}
+                    
+                    avatarSrc={song.albumArt || ''}
+                    onClick={() => onSongSelect(song.id)}
                     secondaryAction={
                       <IconButton
                         edge="end"
@@ -346,75 +343,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
                         <MoreVertIcon />
                       </IconButton>
                     }
-                  >
-                    <ListItemAvatar 
-                      sx={{ minWidth: 72, cursor: 'pointer' }}
-                      onClick={() => onSongSelect(song.id)}
-                    >
-                      <Avatar
-                        src={song.albumArt || ''}
-                        variant="rounded"
-                        sx={{ 
-                          width: 56, 
-                          height: 56,
-                          bgcolor: song.albumArt ? 'transparent' : 'primary.main',
-                          fontSize: '1.5rem',
-                          border: '1px solid',
-                          borderColor: 'divider',
-                        }}
-                        imgProps={{
-                          loading: 'lazy',
-                          onError: (e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }
-                        }}
-                      >
-                        {!song.albumArt && <MusicNoteIcon />}
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      onClick={() => onSongSelect(song.id)}
-                      sx={{ 
-                        cursor: 'pointer',
-                        mr: 1.5,
-                        pr: 0.5,
-                        minWidth: 0,
-                        flex: 1
-                      }}
-                      primary={
-                        <Typography
-                          sx={{
-                            color: 'text.primary',
-                            fontWeight: 500,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {decodeHtmlEntities(song.name)}
-                        </Typography>
-                      }
-                      secondary={
-                        <Box>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: 'text.secondary',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {decodeHtmlEntities(song.artist)}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                            Added {formatDate(song.addedAt)}
-                          </Typography>
-                        </Box>
-                      }
-                      secondaryTypographyProps={{ component: 'div' }}
-                    />
-                  </ListItem>
+                  />
                 ))}
               </List>
             )}

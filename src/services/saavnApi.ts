@@ -1,4 +1,5 @@
 import { SearchResponse } from '../types/api';
+import { setLastFetchFailed } from './networkStatus';
 
 const BASE_URL = 'https://saavn-api-client.vercel.app/api';
 
@@ -10,9 +11,11 @@ export const saavnApi = {
         throw new Error('Songs search failed');
       }
       const data = await response.json();
+      setLastFetchFailed(false);
       return data;
     } catch (error) {
       console.error('Error searching songs:', error);
+      setLastFetchFailed(true);
       throw error;
     }
   },
@@ -24,9 +27,11 @@ export const saavnApi = {
         throw new Error('Playlists search failed');
       }
       const data = await response.json();
+      setLastFetchFailed(false);
       return data;
     } catch (error) {
       console.error('Error searching playlists:', error);
+      setLastFetchFailed(true);
       throw error;
     }
   },
@@ -38,9 +43,11 @@ export const saavnApi = {
         throw new Error('Search failed');
       }
       const data = await response.json();
+      setLastFetchFailed(false);
       return data;
     } catch (error) {
       console.error('Error searching:', error);
+      setLastFetchFailed(true);
       throw error;
     }
   },
@@ -52,9 +59,11 @@ export const saavnApi = {
         throw new Error('Failed to fetch song');
       }
       const data = await response.json();
+      setLastFetchFailed(false);
       return data;
     } catch (error) {
       console.error('Error fetching song:', error);
+      setLastFetchFailed(true, `Failed to fetch song: ${songId}`);
       throw error;
     }
   },
@@ -67,9 +76,11 @@ export const saavnApi = {
         throw new Error('Failed to fetch songs');
       }
       const data = await response.json();
+      setLastFetchFailed(false);
       return data;
     } catch (error) {
       console.error('Error fetching songs by IDs:', error);
+      setLastFetchFailed(true);
       throw error;
     }
   },
@@ -81,9 +92,11 @@ export const saavnApi = {
         throw new Error('Artists search failed');
       }
       const data = await response.json();
+      setLastFetchFailed(false);
       return data;
     } catch (error) {
       console.error('Error searching artists:', error);
+      setLastFetchFailed(true);
       throw error;
     }
   },
@@ -95,9 +108,11 @@ export const saavnApi = {
         throw new Error('Failed to fetch artist songs');
       }
       const data = await response.json();
+      setLastFetchFailed(false);
       return data;
     } catch (error) {
       console.error('Error fetching artist songs:', error);
+      setLastFetchFailed(true);
       throw error;
     }
   },
@@ -109,9 +124,11 @@ export const saavnApi = {
         throw new Error('Failed to fetch playlist');
       }
       const data = await response.json();
+      setLastFetchFailed(false);
       return data;
     } catch (error) {
       console.error('Error fetching playlist:', error);
+      setLastFetchFailed(true);
       throw error;
     }
   },
@@ -123,9 +140,11 @@ export const saavnApi = {
         throw new Error('Failed to fetch album');
       }
       const data = await response.json();
+      setLastFetchFailed(false);
       return data;
     } catch (error) {
       console.error('Error fetching album:', error);
+      setLastFetchFailed(true);
       throw error;
     }
   },
@@ -137,9 +156,11 @@ export const saavnApi = {
         throw new Error('Albums search failed');
       }
       const data = await response.json();
+      setLastFetchFailed(false);
       return data;
     } catch (error) {
       console.error('Error searching albums:', error);
+      setLastFetchFailed(true);
       throw error;
     }
   },
@@ -159,9 +180,11 @@ export const saavnApi = {
       }
       
       const data = await response.json();
+      setLastFetchFailed(false);
       return data;
     } catch (error) {
       console.error('Error fetching song suggestions:', error);
+      setLastFetchFailed(true);
       throw error;
     }
   },

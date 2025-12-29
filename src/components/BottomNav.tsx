@@ -1,5 +1,6 @@
-import React from 'react';
-import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { BottomNavigation, BottomNavigationAction, Paper, Box, Typography } from '@mui/material';
+import { subscribeNetworkStatus, getLastFetchFailed } from '../services/networkStatus';
 import HomeIcon from '@mui/icons-material/Home';
 import SearchIcon from '@mui/icons-material/Search';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
@@ -28,16 +29,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange, showLabel
   };
 
   return (
-    <Paper 
-      sx={{ 
-        position: 'fixed', 
-        bottom: 0, 
-        left: 0, 
-        right: 0,
-        zIndex: 1000
-      }} 
-      elevation={3}
-    >
+    <Paper id="bottom-nav-paper" sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000 }} elevation={3}>
       <BottomNavigation
         value={getTabIndex(activeTab)}
         onChange={handleChange}
@@ -53,24 +45,45 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange, showLabel
           },
         }}
       >
-        <BottomNavigationAction 
-          {...(showLabels && { label: "Home" })}
-          icon={<HomeIcon />} 
-        />
-        <BottomNavigationAction 
-          {...(showLabels && { label: "Explore" })}
-          icon={<ExploreIcon />} 
-        />
-        <BottomNavigationAction 
-          {...(showLabels && { label: "Search" })}
-          icon={<SearchIcon />} 
-        />
-        <BottomNavigationAction 
-          {...(showLabels && { label: "Library" })}
-          icon={<LibraryMusicIcon />} 
-        />
+        <BottomNavigationAction {...(showLabels && { label: 'Home' })} icon={<HomeIcon />} />
+        <BottomNavigationAction {...(showLabels && { label: 'Explore' })} icon={<ExploreIcon />} />
+        <BottomNavigationAction {...(showLabels && { label: 'Search' })} icon={<SearchIcon />} />
+        <BottomNavigationAction {...(showLabels && { label: 'Library' })} icon={<LibraryMusicIcon />} />
       </BottomNavigation>
+
+      {/* Offline / fetch failure banner below nav buttons, always visible like the nav */}
+      <BottomNavBanner />
     </Paper>
+  );
+};
+
+const BottomNavBanner: React.FC = () => {
+  const [isOnline, setIsOnline] = useState<boolean>(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [status, setStatus] = useState(() => getLastFetchFailed());
+
+  useEffect(() => {
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+
+    const unsub = subscribeNetworkStatus(s => setStatus({ lastFetchFailed: s.lastFetchFailed, message: s.message ?? null }));
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+      unsub();
+    };
+  }, []);
+
+  const show = !isOnline || status.lastFetchFailed;
+  if (!show) return null;
+
+  const text = !isOnline ? 'You are offline. Some features may be unavailable.' : (status.message || 'Unable to fetch some content. Showing cached data where available.');
+
+  return (
+    <Box role="banner" sx={{ bgcolor: 'warning.main', color: 'text.primary', py: 0.5, textAlign: 'center', fontSize: '0.85rem' }}>
+      <Typography variant="caption">{text}</Typography>
+    </Box>
   );
 };
 

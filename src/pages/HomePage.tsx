@@ -638,7 +638,7 @@ const HomePage: React.FC<HomePageProps> = ({
         {/* Trending Songs Section */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-            Trending now
+            Trending Songs
           </Typography>
           {chartSongs.length > 10 && (
             <IconButton
