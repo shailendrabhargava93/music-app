@@ -134,7 +134,7 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
   };
 
   return (
-    <Box sx={{ pb: 14, minHeight: '100vh', pt: 0 }}>
+    <Box sx={{ pb: 10, minHeight: '100vh', pt: 0 }}>
       {selectedCategory ? (
         <>
           {/* Sticky header - match AllSongsPage style */}
@@ -172,7 +172,7 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
             </Typography>
           </Box>
 
-          <Box sx={{ px: 2, pb: 12 }}>
+          <Box sx={{ px: 2, pb: 8 }}>
             {/* Loading State */}
             {loading && (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -267,7 +267,7 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
           </Box>
         </>
       ) : (
-        <Box sx={{ px: 2, pt: 1, pb: 14 }}>
+        <Box sx={{ px: 2, pt: 1, pb: 8 }}>
           {/* Moods & Moments Section */}
           <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, color: 'text.primary' }}>
             Moods & moments

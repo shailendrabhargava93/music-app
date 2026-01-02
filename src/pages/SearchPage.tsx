@@ -212,7 +212,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                artist.name && 
                artist.image && 
                artist.image.length > 0;
-      }).slice(0, 20);
+      }).slice(0, 5);
       
       setSongs(validSongs);
       setPlaylists(validPlaylists);
@@ -404,7 +404,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
       {/* Recent Searches */}
       {!hasSearched && !loading && recentSearches.length > 0 && (
         <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <HistoryIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
               <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
@@ -420,22 +420,28 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
               <ClearAllIcon />
             </IconButton>
           </Box>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {recentSearches.map((search, index) => (
-              <Chip
-                key={index}
-                label={search}
-                onClick={() => handleRecentSearchClick(search)}
-                sx={{
-                  bgcolor: 'action.hover',
-                  color: 'text.primary',
-                  '&:hover': {
-                    bgcolor: 'action.selected',
-                  },
-                  cursor: 'pointer',
-                }}
-              />
-            ))}
+
+          {/* Compact horizontal scroller for recent search chips */}
+          <Box sx={{ mb: 0.5, overflowX: 'auto', py: 0.25 }}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'nowrap', alignItems: 'center' }}>
+              {recentSearches.map((search, index) => (
+                <Chip
+                  key={index}
+                  size="small"
+                  label={search}
+                  onClick={() => handleRecentSearchClick(search)}
+                  sx={{
+                    flex: '0 0 auto',
+                    height: 28,
+                    bgcolor: 'action.hover',
+                    color: 'text.primary',
+                    '&:hover': { bgcolor: 'action.selected' },
+                    cursor: 'pointer',
+                    fontSize: '0.85rem'
+                  }}
+                />
+              ))}
+            </Box>
           </Box>
         </Box>
       )}
@@ -462,55 +468,78 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
       {/* Tabs for Search Results */}
       {!loading && hasSearched && (songs.length > 0 || playlists.length > 0 || albums.length > 0 || artists.length > 0) && (
         <Box>
-          <Box sx={{ display: 'flex', gap: 1, mb: 2, justifyContent: 'flex-start' }}>
-            <Chip
-              icon={<MusicNoteIcon />}
-              label="Songs"
-              onClick={() => setActiveTab(0)}
-              variant={activeTab === 0 ? 'filled' : 'outlined'}
-              sx={{
-                bgcolor: activeTab === 0 ? 'primary.main' : 'transparent',
-                color: activeTab === 0 ? 'primary.contrastText' : 'text.primary',
-                borderColor: activeTab === 0 ? 'primary.main' : 'divider',
-                fontWeight: 500,
-              }}
-            />
-            <Chip
-              icon={<AlbumIcon />}
-              label="Albums"
-              onClick={() => setActiveTab(1)}
-              variant={activeTab === 1 ? 'filled' : 'outlined'}
-              sx={{
-                bgcolor: activeTab === 1 ? 'primary.main' : 'transparent',
-                color: activeTab === 1 ? 'primary.contrastText' : 'text.primary',
-                borderColor: activeTab === 1 ? 'primary.main' : 'divider',
-                fontWeight: 500,
-              }}
-            />
-            <Chip
-              icon={<PlaylistPlayIcon />}
-              label="Playlists"
-              onClick={() => setActiveTab(2)}
-              variant={activeTab === 2 ? 'filled' : 'outlined'}
-              sx={{
-                bgcolor: activeTab === 2 ? 'primary.main' : 'transparent',
-                color: activeTab === 2 ? 'primary.contrastText' : 'text.primary',
-                borderColor: activeTab === 2 ? 'primary.main' : 'divider',
-                fontWeight: 500,
-              }}
-            />
-            <Chip
-              icon={<PersonIcon />}
-              label="Artists"
-              onClick={() => setActiveTab(3)}
-              variant={activeTab === 3 ? 'filled' : 'outlined'}
-              sx={{
-                bgcolor: activeTab === 3 ? 'primary.main' : 'transparent',
-                color: activeTab === 3 ? 'primary.contrastText' : 'text.primary',
-                borderColor: activeTab === 3 ? 'primary.main' : 'divider',
-                fontWeight: 500,
-              }}
-            />
+          {/* Compact horizontally scrollable tabs chips */}
+          <Box sx={{ mb: 2, overflowX: 'auto', px: 0, py: 0.25 }}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'nowrap', alignItems: 'center' }}>
+              <Chip
+                size="small"
+                icon={<MusicNoteIcon />}
+                label="Songs"
+                onClick={() => setActiveTab(0)}
+                variant={activeTab === 0 ? 'filled' : 'outlined'}
+                sx={{
+                  flex: '0 0 auto',
+                  height: 28,
+                  bgcolor: activeTab === 0 ? 'primary.main' : 'transparent',
+                  color: activeTab === 0 ? 'primary.contrastText' : 'text.primary',
+                  borderColor: activeTab === 0 ? 'primary.main' : 'divider',
+                  fontWeight: 500,
+                  fontSize: '0.85rem',
+                  '& .MuiChip-icon': { fontSize: '1rem' },
+                }}
+              />
+              <Chip
+                size="small"
+                icon={<AlbumIcon />}
+                label="Albums"
+                onClick={() => setActiveTab(1)}
+                variant={activeTab === 1 ? 'filled' : 'outlined'}
+                sx={{
+                  flex: '0 0 auto',
+                  height: 28,
+                  bgcolor: activeTab === 1 ? 'primary.main' : 'transparent',
+                  color: activeTab === 1 ? 'primary.contrastText' : 'text.primary',
+                  borderColor: activeTab === 1 ? 'primary.main' : 'divider',
+                  fontWeight: 500,
+                  fontSize: '0.85rem',
+                  '& .MuiChip-icon': { fontSize: '1rem' },
+                }}
+              />
+              <Chip
+                size="small"
+                icon={<PlaylistPlayIcon />}
+                label="Playlists"
+                onClick={() => setActiveTab(2)}
+                variant={activeTab === 2 ? 'filled' : 'outlined'}
+                sx={{
+                  flex: '0 0 auto',
+                  height: 28,
+                  bgcolor: activeTab === 2 ? 'primary.main' : 'transparent',
+                  color: activeTab === 2 ? 'primary.contrastText' : 'text.primary',
+                  borderColor: activeTab === 2 ? 'primary.main' : 'divider',
+                  fontWeight: 500,
+                  fontSize: '0.85rem',
+                  '& .MuiChip-icon': { fontSize: '1rem' },
+                }}
+              />
+              <Chip
+                size="small"
+                icon={<PersonIcon />}
+                label="Artists"
+                onClick={() => setActiveTab(3)}
+                variant={activeTab === 3 ? 'filled' : 'outlined'}
+                sx={{
+                  flex: '0 0 auto',
+                  height: 28,
+                  bgcolor: activeTab === 3 ? 'primary.main' : 'transparent',
+                  color: activeTab === 3 ? 'primary.contrastText' : 'text.primary',
+                  borderColor: activeTab === 3 ? 'primary.main' : 'divider',
+                  fontWeight: 500,
+                  fontSize: '0.85rem',
+                  '& .MuiChip-icon': { fontSize: '1rem' },
+                }}
+              />
+            </Box>
           </Box>
 
           {/* Songs Tab */}

@@ -128,10 +128,10 @@ export async function persistFavourites(key: FavouriteKey, items: any[]) {
 }
 
 export async function migrateLocalStorage() {
-  const migratedFlag = localStorage.getItem('indexedDbMigrated');
-  if (migratedFlag === 'true') return;
-
+  const migratedFlagLocal = localStorage.getItem('indexedDbMigrated');
   const db = await getDb();
+  const migratedFlagDb = await getMeta('indexedDbMigrated');
+  if (migratedFlagLocal === 'true' || migratedFlagDb === true) return;
   // migrate favourites
   try {
     const favourites = JSON.parse(localStorage.getItem('favouriteSongs') || '[]');
@@ -256,5 +256,12 @@ export async function migrateLocalStorage() {
     localStorage.removeItem(localKey);
   }
 
+  // Mark migration complete in both storage locations so we don't run twice
   localStorage.setItem('indexedDbMigrated', 'true');
+  try {
+    await setMeta('indexedDbMigrated', true);
+  } catch (err) {
+    // If we can't persist to IndexedDB for any reason, localStorage is our fallback
+    console.warn('Failed to set migration flag in IndexedDB meta', err);
+  }
 }

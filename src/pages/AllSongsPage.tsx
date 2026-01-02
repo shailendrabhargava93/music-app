@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, CircularProgress, IconButton, Skeleton, Menu, MenuItem, ListItemIcon } from '@mui/material';
+import { Box, Typography, CircularProgress, IconButton, Skeleton, Menu, MenuItem, ListItemIcon, Container } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -133,37 +133,47 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
       {/* Sticky header with back button */}
       <Box
         sx={(theme) => ({
-          position: 'sticky',
+          position: 'fixed',
           top: 0,
+          left: 0,
+          right: 0,
           zIndex: theme.zIndex.appBar,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          px: 1.25,
-          py: 0.325,
-          justifyContent: 'flex-start',
           width: '100%',
           backgroundColor: theme.palette.background.default,
           boxShadow: `0 1px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)'}`,
           mt: 0,
-          mb: 1,
+          py: 0.325,
         })}
       >
-        <IconButton
-          onClick={onBack}
-          sx={{
-            color: 'text.primary',
-            '&:hover': {
-              bgcolor: 'action.hover',
-            },
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, fontSize: '1.1rem', pl: 0.5 }} noWrap>
-          Trending Songs
-        </Typography>
+        <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', gap: 1, px: { xs: 1, sm: 1.25 } }}>
+          <IconButton
+            onClick={onBack}
+            sx={{
+              color: 'text.primary',
+              '&:hover': {
+                bgcolor: 'action.hover',
+              },
+            }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography
+            variant="h6"
+            sx={{
+              color: 'text.primary',
+              fontWeight: 600,
+              fontSize: { xs: '1rem', sm: '1.05rem', md: '1.1rem', lg: '1.25rem' },
+              pl: 0.5,
+            }}
+            noWrap
+          >
+            Trending Songs
+          </Typography>
+        </Container>
       </Box>
+
+      {/* Spacer to offset fixed header height so content doesn't go under it */}
+      <Box sx={{ height: { xs: 56, sm: 64 }, width: '100%' }} />
 
       <Box sx={{ px: 2, pb: 12 }}>
         {chartSongs.length === 0 && (

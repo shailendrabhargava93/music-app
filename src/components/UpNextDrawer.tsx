@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Drawer,
   Box,
@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { Song } from '../types/api';
 import SongItem from './SongItem';
 
@@ -18,6 +19,7 @@ interface UpNextDrawerProps {
   suggestions: Song[];
   loading: boolean;
   onSongSelect: (song: Song) => void;
+  onReorder?: (newOrder: Song[]) => void;
 }
 
 const UpNextDrawer: React.FC<UpNextDrawerProps> = ({
@@ -26,7 +28,43 @@ const UpNextDrawer: React.FC<UpNextDrawerProps> = ({
   suggestions,
   loading,
   onSongSelect,
+  onReorder,
 }) => {
+  const [items, setItems] = useState<Song[]>(suggestions || []);
+  const dragIndexRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setItems(suggestions || []);
+  }, [suggestions]);
+
+  const handleDragStart = (index: number) => (e: React.DragEvent) => {
+    dragIndexRef.current = index;
+    try {
+      e.dataTransfer.setData('text/plain', String(index));
+    } catch (err) {
+      // ignore
+    }
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (_index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    const from = dragIndexRef.current;
+    const to = index;
+    if (from === null || from === undefined) return;
+    if (from === to) return;
+    const updated = [...items];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+    setItems(updated);
+    dragIndexRef.current = null;
+    if (onReorder) onReorder(updated);
+  };
   const getHighQualityImage = (
     images: Array<{ quality: string; url?: string; link?: string }>
   ) => {
@@ -37,6 +75,18 @@ const UpNextDrawer: React.FC<UpNextDrawerProps> = ({
       if (img) return img.url || img.link || '';
     }
     return images[0]?.url || images[0]?.link || '';
+  };
+
+  const decodeHtmlEntities = (text: string): string => {
+    if (!text) return text;
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    const decoded = textarea.value;
+    if (decoded.includes('&')) {
+      textarea.innerHTML = decoded;
+      return textarea.value;
+    }
+    return decoded;
   };
 
   const handleSongClick = (song: Song) => {
@@ -106,22 +156,35 @@ const UpNextDrawer: React.FC<UpNextDrawerProps> = ({
         )}
 
         {/* Suggestions List */}
-        {!loading && suggestions.length > 0 && (
+        {!loading && items.length > 0 && (
           <List sx={{ p: 0 }}>
-            {suggestions.filter((song) => song && song.id).map((song, index) => (
-              <SongItem
+            {items.filter((song) => song && song.id).map((song, index) => (
+              <Box
                 key={song.id || index}
-                title={song.name || 'Unknown Song'}
-                artist={(() => {
-                  const songAny = song as any;
-                  if (songAny.artists?.primary && Array.isArray(songAny.artists.primary)) {
-                    return songAny.artists.primary.map((artist: any) => artist.name).join(', ');
+                draggable
+                onDragStart={handleDragStart(index)}
+                onDragOver={handleDragOver(index)}
+                onDrop={handleDrop(index)}
+                sx={{ cursor: 'grab' }}
+              >
+                <SongItem
+                  title={decodeHtmlEntities(song.name || 'Unknown Song')}
+                  artist={(() => {
+                    const songAny = song as any;
+                    if (songAny.artists?.primary && Array.isArray(songAny.artists.primary)) {
+                      return songAny.artists.primary.map((artist: any) => artist.name).join(', ');
+                    }
+                    return song.primaryArtists || 'Unknown Artist';
+                  })()}
+                  imageSrc={song.image ? getHighQualityImage(song.image) : ''}
+                  onClick={() => handleSongClick(song)}
+                  rightContent={
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <DragIndicatorIcon sx={{ color: 'text.secondary', fontSize: 20, pointerEvents: 'none' }} />
+                    </Box>
                   }
-                  return song.primaryArtists || 'Unknown Artist';
-                })()}
-                imageSrc={song.image ? getHighQualityImage(song.image) : ''}
-                onClick={() => handleSongClick(song)}
-              />
+                />
+              </Box>
             ))}
           </List>
         )}

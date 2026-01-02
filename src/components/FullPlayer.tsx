@@ -220,14 +220,10 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: {
+        sx: (theme) => ({
           height: '100%',
-          bgcolor: 'background.default',
-          backgroundImage: (theme) => 
-            theme.palette.mode === 'dark'
-              ? 'linear-gradient(to bottom, rgba(40, 40, 40, 0.9), rgba(10, 25, 41, 1))'
-              : 'linear-gradient(to bottom, rgba(245, 245, 245, 0.95), rgba(245, 245, 245, 1))',
-        },
+          backgroundColor: theme.palette.background.default,
+        }),
       }}
     >
       <Box
@@ -539,25 +535,24 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
         <Box sx={{ 
           bgcolor: 'background.default',
           color: 'text.primary',
-          fontWeight: 'bold',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          p: 2,
+          p: 1,
           borderBottom: '1px solid',
           borderColor: 'divider'
         }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Details</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: '0.95rem' }}>Details</Typography>
           <IconButton
             onClick={() => setInfoDialogOpen(false)}
             size="small"
-            sx={{ color: 'text.secondary' }}
+            sx={{ color: 'text.secondary', p: 0.5 }}
             aria-label="close"
           >
-            <CloseIcon />
+            <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
-        <Box sx={{ bgcolor: 'background.paper', p: 1.25, maxHeight: '60vh', overflowY: 'auto' }}>
+        <Box sx={{ bgcolor: 'background.paper', p: 1, maxHeight: '60vh', overflowY: 'auto' }}>
           <List sx={{ p: 0 }}>
             <ListItem sx={{ px: 0, py: 0.25 }}>
               <ListItemText

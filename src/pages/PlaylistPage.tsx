@@ -9,6 +9,7 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  Container,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
@@ -303,39 +304,41 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
 
   return (
     <Box sx={{ pb: 14, minHeight: '100vh', pt: 0, px: { xs: 2, sm: 3 } }}>
-      {/* Sticky header with back button and playlist name */}
+      {/* Fixed header with back button and playlist name (aligned to app container) */}
       <Box
         sx={(theme) => ({
-          position: 'sticky',
+          position: 'fixed',
           top: 0,
+          left: 0,
+          right: 0,
           zIndex: theme.zIndex.appBar,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          px: 1.25,
-          py: 0.325,
-          justifyContent: 'flex-start',
           width: '100%',
           backgroundColor: theme.palette.background.default,
           boxShadow: `0 1px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)'}`,
           mb: 1,
+          py: 0.325,
         })}
       >
-        <IconButton
-          onClick={onBack}
-          sx={{
-            color: 'text.primary',
-            '&:hover': {
-              bgcolor: 'action.hover',
-            },
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, flex: 1, pl: 0.5 }} noWrap>
-          {decodeHtmlEntities(playlistName)}
-        </Typography>
+        <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', gap: 1, px: { xs: 1, sm: 1.25 } }}>
+          <IconButton
+            onClick={onBack}
+            sx={{
+              color: 'text.primary',
+              '&:hover': {
+                bgcolor: 'action.hover',
+              },
+            }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, flex: 1, pl: 0.5 }} noWrap>
+            {decodeHtmlEntities(playlistName)}
+          </Typography>
+        </Container>
       </Box>
+
+      {/* Spacer to offset fixed header height */}
+      <Box sx={{ height: { xs: 56, sm: 64 }, width: '100%' }} />
 
       {/* Playlist Header */}
       <Box
