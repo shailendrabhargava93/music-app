@@ -39,6 +39,12 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    },
+    {
+      "src": "/wave-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "iarc_rating_id": "e84b9618-a2dd-4d03-9067-2d47d7146205",
