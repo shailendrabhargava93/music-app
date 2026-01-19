@@ -238,7 +238,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
         pt: 1,
       }}
     >
-      <Container maxWidth="sm" disableGutters sx={{ px: { xs: 2, sm: 2 } }}>
+      <Container maxWidth="sm" disableGutters sx={{ px: 2 }}>
         <Box sx={{ mb: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -259,8 +259,8 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
           </Box>
 
           {/* Tabs - compact horizontal scroll for chips only */}
-          <Box sx={{ mb: 2, overflowX: 'auto', mx: -2, px: 2 }}>
-            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'nowrap', alignItems: 'center' }}>
+          <Box sx={{ mb: 2, overflowX: 'auto', mx: -2, px: 2, scrollbarWidth: 'none', msOverflowStyle: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'nowrap', alignItems: 'center' }}>
               <Chip
                 size="small"
                 icon={<MusicNote />}
@@ -269,12 +269,12 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
                 variant={activeTab === 0 ? 'filled' : 'outlined'}
                 sx={{
                   flex: '0 0 auto',
-                  height: 28,
+                  height: 32,
                   bgcolor: activeTab === 0 ? 'primary.main' : 'transparent',
                   color: activeTab === 0 ? 'primary.contrastText' : 'text.primary',
                   borderColor: activeTab === 0 ? 'primary.main' : 'divider',
                   fontWeight: 500,
-                  fontSize: '0.85rem',
+                  fontSize: '0.875rem',
                   '& .MuiChip-icon': { fontSize: '1rem', marginLeft: '6px', marginRight: '-2px' },
                 }}
               />
@@ -286,12 +286,12 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
                 variant={activeTab === 1 ? 'filled' : 'outlined'}
                 sx={{
                   flex: '0 0 auto',
-                  height: 28,
+                  height: 32,
                   bgcolor: activeTab === 1 ? 'primary.main' : 'transparent',
                   color: activeTab === 1 ? 'primary.contrastText' : 'text.primary',
                   borderColor: activeTab === 1 ? 'primary.main' : 'divider',
                   fontWeight: 500,
-                  fontSize: '0.85rem',
+                  fontSize: '0.875rem',
                   '& .MuiChip-icon': { fontSize: '1rem', marginLeft: '6px', marginRight: '-2px' },
                 }}
               />
@@ -303,12 +303,12 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
                 variant={activeTab === 2 ? 'filled' : 'outlined'}
                 sx={{
                   flex: '0 0 auto',
-                  height: 28,
+                  height: 32,
                   bgcolor: activeTab === 2 ? 'primary.main' : 'transparent',
                   color: activeTab === 2 ? 'primary.contrastText' : 'text.primary',
                   borderColor: activeTab === 2 ? 'primary.main' : 'divider',
                   fontWeight: 500,
-                  fontSize: '0.85rem',
+                  fontSize: '0.875rem',
                   '& .MuiChip-icon': { fontSize: '1rem', marginLeft: '6px', marginRight: '-2px' },
                 }}
               />
@@ -320,12 +320,12 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
                 variant={activeTab === 3 ? 'filled' : 'outlined'}
                 sx={{
                   flex: '0 0 auto',
-                  height: 28,
+                  height: 32,
                   bgcolor: activeTab === 3 ? 'primary.main' : 'transparent',
                   color: activeTab === 3 ? 'primary.contrastText' : 'text.primary',
                   borderColor: activeTab === 3 ? 'primary.main' : 'divider',
                   fontWeight: 500,
-                  fontSize: '0.85rem',
+                  fontSize: '0.875rem',
                   '& .MuiChip-icon': { fontSize: '1rem', marginLeft: '6px', marginRight: '-2px' },
                 }}
               />
@@ -457,6 +457,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
                           fontSize: '1.5rem',
                           border: '1px solid',
                           borderColor: 'divider',
+                          borderRadius: 1.5,
                         }}
                         imgProps={{
                           loading: 'lazy',
@@ -581,8 +582,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
                           bgcolor: playlist.image ? 'transparent' : 'primary.main',
                           fontSize: '1.5rem',
                           border: '1px solid',
-                          borderColor: 'divider',
-                        }}
+                          borderColor: 'divider',                          borderRadius: 1.5,                        }}
                         imgProps={{
                           loading: 'lazy',
                           onError: (e) => {
@@ -706,6 +706,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
                           fontSize: '1.5rem',
                           border: '1px solid',
                           borderColor: 'divider',
+                          borderRadius: 1.5,
                         }}
                         imgProps={{
                           loading: 'lazy',

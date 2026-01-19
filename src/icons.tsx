@@ -42,6 +42,7 @@ export { default as HighQuality } from '@mui/icons-material/HighQuality';
 export { default as ChevronRight } from '@mui/icons-material/ChevronRight';
 export { default as DragIndicator } from '@mui/icons-material/DragIndicator';
 export { default as TrendingUp } from '@mui/icons-material/TrendingUp';
+export { default as PeopleAlt } from '@mui/icons-material/PeopleAlt';
 
 // MUI equivalents for previously lucide icons
 export { default as X } from '@mui/icons-material/Close';

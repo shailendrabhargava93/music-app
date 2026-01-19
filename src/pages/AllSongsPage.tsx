@@ -222,7 +222,7 @@ const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, o
                   sx={{
                     width: 56,
                     height: 56,
-                    borderRadius: 1,
+                    borderRadius: 1.5,
                     overflow: 'hidden',
                     backgroundColor: 'rgba(255, 255, 255, 0.1)',
                     flexShrink: 0,

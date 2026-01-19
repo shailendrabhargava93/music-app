@@ -20,7 +20,7 @@ const SearchPage = lazy(() => import('./pages/SearchPage'));
 import { Song, CurrentSong } from './types/api';
 import { saavnApi } from './services/saavnApi';
 import { soundChartsApi, SoundChartsItem } from './services/soundChartsApi';
-import { saveSongMetadata, saveDownloadRecord, setMeta, getDownloadRecord, getMeta, migrateLocalStorage } from './services/storage';
+import { saveSongMetadata, saveDownloadRecord, setMeta, getDownloadRecord, getMeta, migrateLocalStorage, readFavourites, persistFavourites, FAVOURITE_SONGS_KEY } from './services/storage';
 import { subscribeNetworkStatus } from './services/networkStatus';
 import {
   decodeHtmlEntities,
@@ -113,6 +113,9 @@ function App() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   
+  // Current song favorite state
+  const [isFavorite, setIsFavorite] = useState(false);
+  
   // Recently played page state
   const [showRecentlyPlayed, setShowRecentlyPlayed] = useState(false);
   // Show "All Charts" view overlay
@@ -128,6 +131,56 @@ function App() {
       offlineBlobUrlRef.current = null;
     }
   }, []);
+
+  // Check if current song is in favorites
+  useEffect(() => {
+    const checkFavorite = async () => {
+      if (!currentSong) {
+        setIsFavorite(false);
+        return;
+      }
+      try {
+        const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
+        const exists = favourites.some((fav: any) => fav.id === currentSong.id);
+        setIsFavorite(exists);
+      } catch (error) {
+        setIsFavorite(false);
+      }
+    };
+    checkFavorite();
+  }, [currentSong?.id]);
+
+  // Toggle favorite for current song
+  const handleToggleFavorite = useCallback(async () => {
+    if (!currentSong) return;
+    
+    try {
+      const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
+      const exists = favourites.some((fav: any) => fav.id === currentSong.id);
+      
+      if (exists) {
+        const updated = favourites.filter((fav: any) => fav.id !== currentSong.id);
+        await persistFavourites(FAVOURITE_SONGS_KEY, updated);
+        setIsFavorite(false);
+        setSnackbarMessage('Removed from favourites');
+        setSnackbarOpen(true);
+      } else {
+        const newFav = {
+          id: currentSong.id,
+          name: currentSong.title,
+          artist: currentSong.artist,
+          albumArt: currentSong.albumArt,
+          addedAt: Date.now(),
+        };
+        await persistFavourites(FAVOURITE_SONGS_KEY, [...favourites, newFav]);
+        setIsFavorite(true);
+        setSnackbarMessage('Added to favourites ❤️');
+        setSnackbarOpen(true);
+      }
+    } catch (error) {
+      console.warn('Unable to toggle favorite', error);
+    }
+  }, [currentSong]);
 
   const ensureOfflineAudioUrl = useCallback(async (songId: string, remoteUrl?: string) => {
     const normalizedUrl = remoteUrl || '';
@@ -1291,6 +1344,8 @@ function App() {
                 onOpenFullPlayer={() => setFullPlayerOpen(true)}
                 onNextSong={handleNextSong}
                 onPreviousSong={handlePreviousSong}
+                isFavorite={isFavorite}
+                onToggleFavorite={handleToggleFavorite}
               />
               <FullPlayer 
                 open={fullPlayerOpen} 

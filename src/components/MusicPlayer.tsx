@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Avatar, Typography, IconButton, Paper, CircularProgress, LinearProgress } from '@mui/material';
-import { PlayArrow, Pause, SkipNext, SkipPrevious } from '../icons';
+import { Box, Avatar, Typography, IconButton, Paper, CircularProgress, useTheme } from '@mui/material';
+import { PlayArrow, Pause, Favorite, FavoriteBorder } from '../icons';
 
 interface MusicPlayerProps {
   songTitle?: string;
@@ -14,6 +14,8 @@ interface MusicPlayerProps {
   onOpenFullPlayer?: () => void;
   onNextSong?: () => void;
   onPreviousSong?: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }
 
 const MusicPlayer: React.FC<MusicPlayerProps> = ({
@@ -26,9 +28,12 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
   duration = 0,
   onTogglePlay,
   onOpenFullPlayer,
-  onNextSong,
-  onPreviousSong,
+  isFavorite = false,
+  onToggleFavorite
 }) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
+  
   const togglePlay = () => {
     if (onTogglePlay) onTogglePlay();
   };
@@ -59,53 +64,150 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
 
   const progressPercentage = duration > 0 ? (progress / duration) * 100 : 0;
 
-  return (
-    <Paper elevation={8} sx={{ position: 'fixed', bottom: bottomOffset, left: 0, right: 0, zIndex: 999, bgcolor: 'background.paper', borderRadius: 0 }}>
-      <LinearProgress
-        variant="determinate"
-        value={progressPercentage}
-        sx={{
-          height: 3,
-          bgcolor: 'rgba(0, 0, 0, 0.1)',
-          '& .MuiLinearProgress-bar': {
-            bgcolor: 'primary.main',
-          },
-        }}
-      />
+  // Text colors based on theme
+  const textColor = isDarkMode ? '#ffffff' : '#1A2027';
+  const textSecondaryColor = isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(26, 32, 39, 0.7)';
 
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={onOpenFullPlayer}>
-          <Avatar src={albumArt} variant="rounded" imgProps={{ loading: 'lazy' }} sx={{ width: 48, height: 48, bgcolor: 'action.hover' }}>
-            🎵
-          </Avatar>
+  return (
+    <Paper 
+      elevation={0} 
+      sx={{ 
+        position: 'fixed', 
+        bottom: bottomOffset, 
+        left: 0, 
+        right: 0, 
+        zIndex: 999, 
+        bgcolor: 'transparent',
+        borderRadius: 0,
+        px: 2,
+        pb: 1.5,
+      }}
+    >
+      {/* Main player bar */}
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          bgcolor: 'background.paper',
+          borderRadius: 3,
+          px: 2,
+          py: 1.5,
+          background: isDarkMode 
+            ? 'linear-gradient(135deg, #00BCD4 0%, #0097A7 100%)'
+            : 'linear-gradient(135deg, #4DD0E1 0%, #00BCD4 100%)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+        }}
+      >
+        {/* Left section: Album art with circular progress + Song info */}
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 1.5, 
+            flex: 1, 
+            minWidth: 0,
+            cursor: 'pointer',
+          }} 
+          onClick={onOpenFullPlayer}
+        >
+          {/* Album art with circular progress */}
+          <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+            <CircularProgress
+              variant="determinate"
+              value={progressPercentage}
+              size={56}
+              thickness={2.5}
+              sx={{
+                color: isDarkMode ? 'rgba(255, 255, 255, 0.9)' : 'rgba(26, 32, 39, 0.8)',
+                position: 'absolute',
+                top: -4,
+                left: -4,
+              }}
+            />
+            <Avatar 
+              src={albumArt} 
+              variant="circular"
+              imgProps={{ loading: 'lazy' }} 
+              sx={{ 
+                width: 48, 
+                height: 48, 
+                bgcolor: 'rgba(255, 255, 255, 0.2)',
+              }}
+            >
+              🎵
+            </Avatar>
+          </Box>
+          
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography
               variant="body2"
-              sx={{ color: 'text.primary', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              sx={{ 
+                color: textColor, 
+                fontWeight: 600, 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis', 
+                whiteSpace: 'nowrap',
+                fontSize: '0.95rem',
+              }}
             >
               {songTitle}
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: textSecondaryColor, 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis', 
+                whiteSpace: 'nowrap', 
+                display: 'block',
+                fontSize: '0.8rem',
+              }}
+            >
               {artist}
             </Typography>
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        {/* Right section: Favorite + Play/Pause */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>
           {isLoading ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', px: 2 }}>
-              <CircularProgress size={24} sx={{ color: 'primary.main' }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', px: 1 }}>
+              <CircularProgress size={28} sx={{ color: textColor }} />
             </Box>
           ) : (
             <>
-              <IconButton onClick={onPreviousSong} sx={{ color: 'text.primary', '&:hover': { bgcolor: 'action.hover' } }} aria-label="previous track">
-                <SkipPrevious />
+              <IconButton 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onToggleFavorite) onToggleFavorite();
+                }}
+                sx={{ 
+                  color: textColor,
+                  '&:hover': { 
+                    bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
+                  },
+                  width: 40,
+                  height: 40,
+                }} 
+                aria-label="toggle favorite"
+              >
+                {isFavorite ? <Favorite /> : <FavoriteBorder />}
               </IconButton>
-              <IconButton onClick={togglePlay} sx={{ color: 'text.primary', '&:hover': { bgcolor: 'action.hover' }, mx: 0.5 }} aria-label={isPlaying ? 'pause' : 'play'}>
+              <IconButton 
+                onClick={togglePlay} 
+                sx={{ 
+                  color: textColor,
+                  bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
+                  '&:hover': { 
+                    bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.15)',
+                  },
+                  width: 40,
+                  height: 40,
+                }} 
+                aria-label={isPlaying ? 'pause' : 'play'}
+              >
                 {isPlaying ? <Pause /> : <PlayArrow />}
-              </IconButton>
-              <IconButton onClick={onNextSong} sx={{ color: 'text.primary', '&:hover': { bgcolor: 'action.hover' } }} aria-label="next track">
-                <SkipNext />
               </IconButton>
             </>
           )}

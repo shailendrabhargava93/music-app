@@ -189,9 +189,28 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
       }
       if (t.type === 'song') {
         if (onSongSelect) {
-          // If payload exists, pass it; else try to fetch by id
-          if (t.payload) onSongSelect(t.payload);
-          else onSongSelect({ id: t.id, name: t.name, image: t.image });
+          // If payload exists, pass it; else fetch song by id
+          if (t.payload) {
+            onSongSelect(t.payload);
+          } else {
+            try {
+              setLoading(true);
+              const songId = t.id || t.payload?.id;
+              if (!songId) {
+                if (t.name) {
+                  await handleSearch(t.name);
+                }
+                return;
+              }
+              const resp = await saavnApi.getSongById(songId);
+              const songData = resp?.data?.[0] || resp?.[0] || resp?.data || resp;
+              if (songData) {
+                onSongSelect(songData);
+              }
+            } finally {
+              setLoading(false);
+            }
+          }
         }
         return;
       }
@@ -465,7 +484,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
             <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600 }}>Trending</Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-start' }}>
             {trending.map((t, idx) => {
               const label = t.name || (t.payload && (t.payload.title || t.payload.name)) || 'Unknown';
               const image = Array.isArray(t.image) ? (t.image[0]?.url || t.image[0]) : t.image;
@@ -476,7 +495,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                   avatar={image ? <Avatar src={image} /> : undefined}
                   label={label}
                   onClick={() => handleTrendingClick(t)}
-                  sx={{ height: 32, cursor: 'pointer', textTransform: 'none' }}
+                  sx={{ height: 34, cursor: 'pointer', textTransform: 'none', fontSize: '0.875rem' }}
                 />
               );
             })}
@@ -506,7 +525,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
 
           {/* Recent search chips that wrap onto multiple lines */}
           <Box sx={{ mb: 0.5, py: 0.25 }}>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-start' }}>
               {recentSearches.map((search, index) => (
                 <Chip
                   key={index}
@@ -514,12 +533,12 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                   label={search}
                   onClick={() => handleRecentSearchClick(search)}
                   sx={{
-                    height: 28,
+                    height: 32,
                     bgcolor: 'action.hover',
                     color: 'text.primary',
                     '&:hover': { bgcolor: 'action.selected' },
                     cursor: 'pointer',
-                    fontSize: '0.85rem'
+                    fontSize: '0.875rem'
                   }}
                 />
               ))}
@@ -547,10 +566,10 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
 
       {/* Tabs for Search Results */}
       {!loading && hasSearched && (songs.length > 0 || playlists.length > 0 || albums.length > 0 || artists.length > 0) && (
-        <Container maxWidth="sm" disableGutters sx={{ px: { xs: 2, sm: 2 } }}>
+        <Container maxWidth="sm" disableGutters>
           {/* Compact horizontally scrollable tabs chips */}
-          <Box sx={{ mb: 2, overflowX: 'auto', mx: -2, px: 2 }}>
-            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'nowrap', alignItems: 'center' }}>
+          <Box sx={{ mb: 2, overflowX: 'auto' }}>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'nowrap', alignItems: 'center' }}>
               <Chip
                 size="small"
                 icon={<MusicNote />}
@@ -559,12 +578,12 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                 variant={activeTab === 0 ? 'filled' : 'outlined'}
                 sx={{
                   flex: '0 0 auto',
-                  height: 28,
+                  height: 32,
                   bgcolor: activeTab === 0 ? 'primary.main' : 'transparent',
                   color: activeTab === 0 ? 'primary.contrastText' : 'text.primary',
                   borderColor: activeTab === 0 ? 'primary.main' : 'divider',
                   fontWeight: 500,
-                  fontSize: '0.85rem',
+                  fontSize: '0.875rem',
                   '& .MuiChip-icon': { fontSize: '1rem', marginLeft: '6px', marginRight: '-2px' },
                 }}
               />
@@ -576,12 +595,12 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                 variant={activeTab === 1 ? 'filled' : 'outlined'}
                 sx={{
                   flex: '0 0 auto',
-                  height: 28,
+                  height: 32,
                   bgcolor: activeTab === 1 ? 'primary.main' : 'transparent',
                   color: activeTab === 1 ? 'primary.contrastText' : 'text.primary',
                   borderColor: activeTab === 1 ? 'primary.main' : 'divider',
                   fontWeight: 500,
-                  fontSize: '0.85rem',
+                  fontSize: '0.875rem',
                   '& .MuiChip-icon': { fontSize: '1rem', marginLeft: '6px', marginRight: '-2px' },
                 }}
               />
@@ -593,12 +612,12 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                 variant={activeTab === 2 ? 'filled' : 'outlined'}
                 sx={{
                   flex: '0 0 auto',
-                  height: 28,
+                  height: 32,
                   bgcolor: activeTab === 2 ? 'primary.main' : 'transparent',
                   color: activeTab === 2 ? 'primary.contrastText' : 'text.primary',
                   borderColor: activeTab === 2 ? 'primary.main' : 'divider',
                   fontWeight: 500,
-                  fontSize: '0.85rem',
+                  fontSize: '0.875rem',
                   '& .MuiChip-icon': { fontSize: '1rem', marginLeft: '6px', marginRight: '-2px' },
                 }}
               />
@@ -610,12 +629,12 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                 variant={activeTab === 3 ? 'filled' : 'outlined'}
                 sx={{
                   flex: '0 0 auto',
-                  height: 28,
+                  height: 32,
                   bgcolor: activeTab === 3 ? 'primary.main' : 'transparent',
                   color: activeTab === 3 ? 'primary.contrastText' : 'text.primary',
                   borderColor: activeTab === 3 ? 'primary.main' : 'divider',
                   fontWeight: 500,
-                  fontSize: '0.85rem',
+                  fontSize: '0.875rem',
                   '& .MuiChip-icon': { fontSize: '1rem', marginLeft: '6px', marginRight: '-2px' },
                 }}
               />

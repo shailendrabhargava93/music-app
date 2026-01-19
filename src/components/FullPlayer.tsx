@@ -373,6 +373,7 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
               aspectRatio: '1',
               bgcolor: 'action.hover',
               fontSize: '4rem',
+              borderRadius: 1.5,
             }}
           >
             🎵

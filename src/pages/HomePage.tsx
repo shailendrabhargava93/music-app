@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
-  CircularProgress,
   Avatar,
   Skeleton,
   IconButton,
@@ -10,7 +9,7 @@ import {
   MenuItem,
   ListItemIcon,
 } from '@mui/material';
-import { MoreVertical, PlayArrow, FavoriteBorder, Favorite, PlaylistAdd, QueueMusic, Album, PlaylistPlay, ArrowForward, MusicNote } from '../icons';
+import { PlayArrow, FavoriteBorder, Favorite, PlaylistAdd, QueueMusic, Album, PlaylistPlay, ArrowForward, MusicNote } from '../icons';
 import Header from '../components/Header';
 import { Song } from '../types/api';
 import { SoundChartsItem } from '../services/soundChartsApi';
@@ -320,12 +319,6 @@ const HomePage: React.FC<HomePageProps> = ({
     }
   };
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, song: ChartSongWithSaavn) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
-    setSelectedSong(song);
-  };
-
   const handleMenuClose = () => {
     setAnchorEl(null);
     setSelectedSong(null);
@@ -384,24 +377,6 @@ const HomePage: React.FC<HomePageProps> = ({
   const handleArtistCardClick = (artist: ArtistPreview) => {
     if (!artist?.id) return;
     onArtistSelect(artist.id, artist.name || 'Artist', artist.image || '');
-  };
-
-  const getImageUrl = (imageArray: any[]): string => {
-    if (!Array.isArray(imageArray) || imageArray.length === 0) {
-      return '';
-    }
-
-    const qualities = ['150x150', '500x500', '50x50'];
-    
-    for (const quality of qualities) {
-      const img = imageArray.find((img: any) => img.quality === quality);
-      if (img) {
-        return img.url || img.link || '';
-      }
-    }
-    
-    const firstImg = imageArray[0];
-    return firstImg?.url || firstImg?.link || '';
   };
 
   return (
@@ -710,6 +685,144 @@ const HomePage: React.FC<HomePageProps> = ({
           )}
         </Box>
 
+        {/* Trending Songs Section (Top 10 grid) */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+            Trending Songs
+          </Typography>
+          {chartSongs.length > 10 && (
+            <IconButton
+              onClick={onViewAllCharts}
+              size="small"
+              sx={{
+                color: 'primary.main',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+              }}
+              aria-label="view all trending songs"
+            >
+              <ArrowForward />
+            </IconButton>
+          )}
+        </Box>
+
+        {chartSongsLoading && displayedSongs.length === 0 && (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(5, 1fr)' }, gap: 2, mb: 2 }}>
+            {[...Array(10)].map((_, idx) => (
+              <Box key={idx} sx={{ width: '100%', textAlign: 'center' }}>
+                <Skeleton variant="rounded" width="100%" height={160} sx={{ mb: 1 }} />
+                <Skeleton width="80%" />
+              </Box>
+            ))}
+          </Box>
+        )}
+
+        {displayedSongs.length > 0 && (
+          <Box sx={{ mb: 3, overflowY: 'visible' }}>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                gap: 3, 
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                pr: 2,
+                scrollbarWidth: 'none', 
+                msOverflowStyle: 'none', 
+                '&::-webkit-scrollbar': { display: 'none' },
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
+              {displayedSongs.map((item, idx) => {
+                const pos = typeof item.position !== 'undefined' ? item.position : idx + 1;
+                
+                // Helper to choose best quality image
+                const chooseBestImage = (saavnImgs: any[], fallback?: string) => {
+                  if (Array.isArray(saavnImgs) && saavnImgs.length > 0) {
+                    const preferred = ['500x500', '300x300', '150x150', '50x50'];
+                    for (const p of preferred) {
+                      const found = saavnImgs.find((i: any) => i.quality === p || (i.link && i.link.includes(p)) || (i.url && i.url.includes(p)));
+                      if (found) return found.url || found.link || found;
+                    }
+                    const first = saavnImgs[0];
+                    return first.url || first.link || first;
+                  }
+                  return fallback || '';
+                };
+
+                const posterUrl = item.saavnData && item.saavnData.image && item.saavnData.image.length > 0 
+                  ? chooseBestImage(item.saavnData.image, item.song.imageUrl) 
+                  : (item.song.imageUrl || '');
+
+                return (
+                  <Box 
+                    key={pos} 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'flex-end', 
+                      gap: 0,
+                      cursor: item.saavnData ? 'pointer' : 'default',
+                      transition: 'transform 0.2s',
+                      flexShrink: 0,
+                      '&:hover': {
+                        transform: item.saavnData ? 'scale(1.03)' : 'none'
+                      }
+                    }} 
+                    onClick={() => handleSongClick(item)}
+                  >
+                    {/* Large rank number with Netflix-style thick black outline */}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'center',
+                        width: { xs: 60, sm: 90 },
+                        height: { xs: 130, sm: 160 },
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: { xs: 90, sm: 150 },
+                          lineHeight: 0.85,
+                          fontWeight: 900,
+                          fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+                          letterSpacing: '-8px',
+                          WebkitTextStroke: '6px #000',
+                          color: '#e5e5e5',
+                          paintOrder: 'stroke fill',
+                          textShadow: '0 4px 8px rgba(0,0,0,0.5)',
+                          userSelect: 'none',
+                          margin: 0,
+                          padding: 0,
+                        }}
+                      >
+                        {pos}
+                      </Typography>
+                    </Box>
+
+                    {/* Album poster - square aspect */}
+                    <Avatar 
+                      src={posterUrl} 
+                      variant="rounded" 
+                      sx={{ 
+                        width: { xs: 130, sm: 160 }, 
+                        height: { xs: 130, sm: 160 }, 
+                        borderRadius: 1.5,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)', 
+                        flexShrink: 0, 
+                        '& img': { objectFit: 'cover', width: '100%', height: '100%' } 
+                      }}
+                    >
+                      <MusicNote sx={{ fontSize: 40 }} />
+                    </Avatar>
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        )}
+
         <Box sx={{ mb: 4 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 500 }}>
@@ -765,173 +878,6 @@ const HomePage: React.FC<HomePageProps> = ({
             </Typography>
           )}
         </Box>
-
-        {/* Trending Songs Section */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-            Trending Songs
-          </Typography>
-          {chartSongs.length > 10 && (
-            <IconButton
-              onClick={onViewAllCharts}
-              size="small"
-              sx={{
-                color: 'primary.main',
-                '&:hover': {
-                  bgcolor: 'action.hover',
-                },
-              }}
-              aria-label="view all trending songs"
-            >
-              <ArrowForward />
-            </IconButton>
-          )}
-        </Box>
-
-        {chartSongsLoading && displayedSongs.length === 0 && (
-          <Box>
-            {[...Array(10)].map((_, index) => (
-              <Box
-                key={index}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  mb: 1,
-                  p: 1.5,
-                }}
-              >
-                <Skeleton variant="text" width={40} height={40} sx={{ flexShrink: 0 }} />
-                <Skeleton variant="rounded" width={56} height={56} sx={{ flexShrink: 0 }} />
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Skeleton variant="text" width="70%" height={24} />
-                  <Skeleton variant="text" width="50%" height={20} />
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        )}
-
-        {displayedSongs.length > 0 && (
-          <Box>
-            {displayedSongs.map((item) => (
-              <Box
-                key={item.position}
-                onClick={() => handleSongClick(item)}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  mb: 1,
-                  p: 0.5,
-                  borderRadius: 1,
-                  cursor: item.saavnData ? 'pointer' : 'default',
-                  opacity: item.saavnData ? 1 : 0.7,
-                  transition: 'background-color 0.2s',
-                  '&:hover': item.saavnData ? {
-                    backgroundColor: (theme) => 
-                      theme.palette.mode === 'light'
-                        ? 'rgba(0, 188, 212, 0.08)'
-                        : 'rgba(255, 255, 255, 0.05)',
-                  } : {},
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {item.isSearching ? (
-                    <CircularProgress size={24} sx={{ color: 'primary.main' }} />
-                  ) : item.saavnData?.image && item.saavnData.image.length > 0 ? (
-                    <img
-                      src={getImageUrl(item.saavnData.image)}
-                      alt={item.song.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : item.song.imageUrl ? (
-                    <img
-                      src={item.song.imageUrl}
-                      alt={item.song.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <Typography sx={{ color: 'text.disabled', fontSize: '1.5rem' }}>
-                      ♪
-                    </Typography>
-                  )}
-                </Box>
-
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      fontWeight: 500,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {typeof item.position !== 'undefined' ? `${item.position}. ${item.song.name}` : item.song.name}
-                  </Typography>
-                  <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        fontSize: {
-                          xs: '0.7rem',
-                          sm: '0.8rem',
-                          md: '0.9rem',
-                        },
-                      }}
-                  >
-                    {item.song.creditName}
-                  </Typography>
-                </Box>
-
-                {item.saavnData && (
-                  <IconButton
-                    onClick={(e) => handleMenuOpen(e, item)}
-                    size="small"
-                    sx={{ color: 'text.secondary' }}
-                  >
-                    <MoreVertical fontSize="small" />
-                  </IconButton>
-                )}
-
-                {item.isSearching && (
-                  <Typography
-                    variant="caption"
-                    color="text.disabled"
-                    sx={{ fontSize: '0.7rem' }}
-                  >
-                    Finding...
-                  </Typography>
-                )}
-                {!item.isSearching && !item.saavnData && (
-                  <Typography
-                    variant="caption"
-                    color="text.disabled"
-                    sx={{ fontSize: '0.7rem' }}
-                  >
-                    Not available
-                  </Typography>
-                )}
-              </Box>
-            ))}
-          </Box>
-        )}
       </Box>
 
       {/* Context Menu */}

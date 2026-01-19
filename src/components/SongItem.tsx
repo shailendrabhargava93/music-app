@@ -43,7 +43,7 @@ const SongItem: React.FC<SongItemProps> = ({
       }}
     >
       {playing ? (
-        <Box sx={{ width: 56, height: 56, position: 'relative', flexShrink: 0, borderRadius: '8px', overflow: 'hidden', border: (theme) => `2px solid ${theme.palette.primary.main}` }}>
+        <Box sx={{ width: 56, height: 56, position: 'relative', flexShrink: 0, borderRadius: 1.5, overflow: 'hidden', border: (theme) => `2px solid ${theme.palette.primary.main}` }}>
           {imageSrc ? (
             <img
               src={imageSrc}
@@ -57,7 +57,7 @@ const SongItem: React.FC<SongItemProps> = ({
           )}
 
           {/* Dim background + Equalizer overlay (stronger contrast) */}
-          <Box sx={{ position: 'absolute', inset: 0, borderRadius: '8px', bgcolor: 'rgba(0,0,0,0.22)', pointerEvents: 'none', zIndex: 1 }} />
+          <Box sx={{ position: 'absolute', inset: 0, borderRadius: 1.5, bgcolor: 'rgba(0,0,0,0.22)', pointerEvents: 'none', zIndex: 1 }} />
           <Box sx={{ position: 'absolute', left: 8, right: 8, bottom: 8, top: 8, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 0.6, pointerEvents: 'none', zIndex: 2 }}>
             {[0,1,2,3,4].map((i) => (
               <Box
@@ -92,7 +92,7 @@ const SongItem: React.FC<SongItemProps> = ({
           sx={{
             width: 56,
             height: 56,
-            borderRadius: 1,
+            borderRadius: 1.5,
             overflow: 'hidden',
             backgroundColor: 'rgba(255, 255, 255, 0.1)',
             flexShrink: 0,

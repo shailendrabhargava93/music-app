@@ -5,7 +5,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import { MoreVertical } from '../icons';
 // About dialog removed per request
 import { Box, Container, Typography, Avatar, IconButton, Skeleton, List, Chip, Button } from '@mui/material';
-import { ArrowBack, PlayArrow, Album, QueueMusic, PlaylistAdd, Verified, Language, Favorite } from '../icons';
+import { ArrowBack, PlayArrow, Album, QueueMusic, PlaylistAdd, Verified, Language, Favorite, PeopleAlt, Person } from '../icons';
 import { saavnApi } from '../services/saavnApi';
 import { FAVOURITE_SONGS_KEY, persistFavourites, readFavourites } from '../services/storage';
 import SongItem from '../components/SongItem';
@@ -83,7 +83,7 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
             <Skeleton variant="circular" width={120} height={120} />
           ) : (
             <Avatar src={getImageFromData()} variant="rounded" imgProps={{ loading: 'lazy' }} sx={{ width: 120, height: 120, boxShadow: '0 6px 18px rgba(0,0,0,0.2)' }}>
-              <Album sx={{ fontSize: 48 }} />
+              <Person sx={{ fontSize: 48 }} />
             </Avatar>
           )}
           <Box sx={{ flex: 1 }}>
@@ -94,11 +94,11 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
 
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mt: 0.5 }}>
               {!loading && typeof artistData?.followerCount !== 'undefined' ? (
-                <Chip size="small" icon={<Favorite />} label={`${formatCountShort(artistData.followerCount)} followers`} />
+                <Chip size="small" icon={<PeopleAlt />} label={`${formatCountShort(artistData.followerCount)} followers`} />
               ) : loading ? <Skeleton variant="rectangular" width={120} height={28} /> : null}
 
               {!loading && artistData?.fanCount ? (
-                <Chip size="small" label={`${formatCountShort(artistData.fanCount)} fans`} />
+                <Chip size="small" icon={<Favorite />} label={`${formatCountShort(artistData.fanCount)} fans`} />
               ) : loading ? <Skeleton variant="rectangular" width={90} height={28} /> : null}
 
               {!loading && artistData?.dominantLanguage ? (
@@ -281,7 +281,31 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
 
         {/* Singles */}
         <Box sx={{ mb: 6 }}>
-          <Typography variant="h6" sx={{ mb: 1 }}>Singles</Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="h6">Singles</Typography>
+            {!loading && singles.length > 0 ? (
+              <Button 
+                size="small" 
+                startIcon={<PlayArrow />} 
+                onClick={async () => { 
+                  if (!onSongSelect || !singles[0]) return;
+                  try {
+                    const albumId = singles[0].id || singles[0].albumid || singles[0].album_id;
+                    if (!albumId) return;
+                    const albumData = await saavnApi.getAlbumById(albumId);
+                    const songs = albumData?.data?.songs || albumData?.songs || [];
+                    if (songs.length > 0) {
+                      onSongSelect(songs[0], songs);
+                    }
+                  } catch (err) {
+                    console.warn('Failed to load single', err);
+                  }
+                }}
+              >
+                Play All
+              </Button>
+            ) : loading ? <Skeleton variant="rectangular" width={80} height={32} /> : null}
+          </Box>
           {loading ? (
             <Box>
               {[...Array(6)].map((_, i) => (
@@ -293,21 +317,40 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
           ) : (
             <List>
               {singles.slice(0, 12).map((item: any, idx: number) => {
-                // singles may be album-like objects; render as a simple item
+                // singles are album-like objects; fetch songs and play first one
                 const title = decodeHtmlEntities(item.name || item.title || '');
                 const artist = joinArtistNames(item.artists?.primary ?? item.artists?.all ?? []);
                 const imageSrc = getHighQualityImage(item.image) || '';
+                const albumId = item.id || item.albumid || item.album_id;
+                
+                const handleSingleClick = async () => {
+                  if (!albumId || !onSongSelect) return;
+                  try {
+                    const albumData = await saavnApi.getAlbumById(albumId);
+                    const songs = albumData?.data?.songs || albumData?.songs || [];
+                    if (songs.length > 0) {
+                      onSongSelect(songs[0], songs);
+                    }
+                  } catch (err) {
+                    console.warn('Failed to load single', err);
+                  }
+                };
+                
                 return (
                   <SongItem
-                    key={item.id || item.sid || title || idx}
+                    key={albumId || title || idx}
                     title={title}
                     artist={artist}
                     imageSrc={imageSrc}
-                    onClick={() => onSongSelect && onSongSelect(item)}
+                    onClick={handleSingleClick}
                     rightContent={
                       <IconButton
                         edge="end"
-                        onClick={(e) => { e.stopPropagation(); setMenuAnchor(e.currentTarget); setMenuTarget(item); }}
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setMenuAnchor(e.currentTarget); 
+                          setMenuTarget({ ...item, albumId, title, artist, imageSrc });
+                        }}
                         sx={{ color: 'text.secondary' }}
                       >
                         <MoreVertical />
@@ -325,18 +368,63 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
 
   // Menu for per-song actions
   const SongMenu: React.FC<{ anchorEl: HTMLElement | null; onClose: () => void; song: any | null; }> = ({ anchorEl, onClose, song }) => {
-    const handlePlayNow = () => {
-      if (song && onSongSelect) onSongSelect(song, topSongs.concat(singles));
+    const handlePlayNow = async () => {
+      if (!song || !onSongSelect) return onClose();
+      
+      // Check if this is a single (has albumId)
+      if (song.albumId) {
+        try {
+          const albumData = await saavnApi.getAlbumById(song.albumId);
+          const songs = albumData?.data?.songs || albumData?.songs || [];
+          if (songs.length > 0) {
+            onSongSelect(songs[0], songs);
+          }
+        } catch (err) {
+          console.warn('Failed to load single', err);
+        }
+      } else {
+        onSongSelect(song, topSongs.concat(singles));
+      }
       onClose();
     };
 
-    const handleAddToQueue = () => {
-      if (song && onAddToQueue) onAddToQueue(song);
+    const handleAddToQueue = async () => {
+      if (!song || !onAddToQueue) return onClose();
+      
+      // Check if this is a single (has albumId)
+      if (song.albumId) {
+        try {
+          const albumData = await saavnApi.getAlbumById(song.albumId);
+          const songs = albumData?.data?.songs || albumData?.songs || [];
+          if (songs.length > 0) {
+            onAddToQueue(songs[0]);
+          }
+        } catch (err) {
+          console.warn('Failed to load single', err);
+        }
+      } else {
+        onAddToQueue(song);
+      }
       onClose();
     };
 
-    const handlePlayNext = () => {
-      if (song && onPlayNext) onPlayNext(song);
+    const handlePlayNext = async () => {
+      if (!song || !onPlayNext) return onClose();
+      
+      // Check if this is a single (has albumId)
+      if (song.albumId) {
+        try {
+          const albumData = await saavnApi.getAlbumById(song.albumId);
+          const songs = albumData?.data?.songs || albumData?.songs || [];
+          if (songs.length > 0) {
+            onPlayNext(songs[0]);
+          }
+        } catch (err) {
+          console.warn('Failed to load single', err);
+        }
+      } else {
+        onPlayNext(song);
+      }
       onClose();
     };
 

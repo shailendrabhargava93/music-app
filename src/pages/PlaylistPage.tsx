@@ -340,7 +340,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
         }}
       >
         {loading ? (
-          <Skeleton variant="rounded" width={160} height={160} sx={{ mb: 1.5, borderRadius: 2 }} />
+          <Skeleton variant="rounded" width={160} height={160} sx={{ mb: 1.5, borderRadius: 1.5 }} />
         ) : (
           <Avatar
             src={playlistImage}
@@ -350,6 +350,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
               height: 160,
               mb: 1.5,
               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+              borderRadius: 1.5,
             }}
           >
             <PlayArrow sx={{ fontSize: 80 }} />
