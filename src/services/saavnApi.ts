@@ -1,23 +1,26 @@
 import { SearchResponse } from '../types/api';
 import { setLastFetchFailed } from './networkStatus';
 import { getBestImage } from '../utils/normalize';
+import { fetchJson as _fetchJson, withInflight as _withInflight } from '../utils/fetch';
+
+type AnyRecord = Record<string, unknown>;
 
 const getInflight = () => {
-  if (!(saavnApi as any)._inflight) (saavnApi as any)._inflight = {} as any;
-  const root = (saavnApi as any)._inflight as Record<string, Map<string, Promise<any>>>;
-  root.playlists = root.playlists ?? new Map<string, Promise<any>>();
-  root.albums = root.albums ?? new Map<string, Promise<any>>();
-  root.artists = root.artists ?? new Map<string, Promise<any>>();
-  root.searches = root.searches ?? new Map<string, Promise<any>>();
-  root.songsByIds = root.songsByIds ?? new Map<string, Promise<any>>();
-  root.launches = root.launches ?? new Map<string, Promise<any>>();
+  if (!(saavnApi as unknown as AnyRecord)._inflight) (saavnApi as unknown as AnyRecord)._inflight = {} as unknown as AnyRecord;
+  const root = (saavnApi as unknown as AnyRecord)._inflight as Record<string, Map<string, Promise<unknown>>>;
+  root.playlists = root.playlists ?? new Map<string, Promise<unknown>>();
+  root.albums = root.albums ?? new Map<string, Promise<unknown>>();
+  root.artists = root.artists ?? new Map<string, Promise<unknown>>();
+  root.searches = root.searches ?? new Map<string, Promise<unknown>>();
+  root.songsByIds = root.songsByIds ?? new Map<string, Promise<unknown>>();
+  root.launches = root.launches ?? new Map<string, Promise<unknown>>();
   return root as {
-    playlists: Map<string, Promise<any>>;
-    albums: Map<string, Promise<any>>;
-    artists: Map<string, Promise<any>>;
-    searches: Map<string, Promise<any>>;
-    songsByIds: Map<string, Promise<any>>;
-    launches: Map<string, Promise<any>>;
+    playlists: Map<string, Promise<unknown>>;
+    albums: Map<string, Promise<unknown>>;
+    artists: Map<string, Promise<unknown>>;
+    searches: Map<string, Promise<unknown>>;
+    songsByIds: Map<string, Promise<unknown>>;
+    launches: Map<string, Promise<unknown>>;
   };
 };
 
@@ -30,32 +33,25 @@ const markFetchFailed = (message?: string) => {
   }
 };
 
+// Wrap shared helpers to ensure we keep setting fetch failure state here
+async function fetchJson(url: string, errorMessage?: string) {
+  const data = await _fetchJson(url, errorMessage);
+  setLastFetchFailed(false);
+  return data;
+}
+
+async function withInflight<T>(map: Map<string, Promise<T>>, key: string, fn: () => Promise<T>) {
+  return await _withInflight(map, key, fn);
+}
+
 const BASE_URL = 'https://saavn-api-client.vercel.app/api';
 
 export const saavnApi = {
-  searchSongs: async (query: string, limit: number = 20): Promise<any> => {
+  searchSongs: async (query: string, limit: number = 20): Promise<unknown> => {
     try {
       const inflight = getInflight().searches;
       const key = `${query}::${limit}`;
-      if (inflight.has(key)) return inflight.get(key)!;
-
-      const promise = (async () => {
-        const response = await fetch(`${BASE_URL}/search/songs?query=${encodeURIComponent(query)}&page=0&limit=${limit}`);
-        if (!response.ok) {
-          throw new Error('Songs search failed');
-        }
-        const data = await response.json();
-        setLastFetchFailed(false);
-        return data;
-      })();
-
-      inflight.set(key, promise);
-      try {
-        const res = await promise;
-        return res;
-      } finally {
-        inflight.delete(key);
-      }
+      return await withInflight(inflight, key, () => fetchJson(`${BASE_URL}/search/songs?query=${encodeURIComponent(query)}&page=0&limit=${limit}`, 'Songs search failed'));
     } catch (error) {
       console.error('Error searching songs:', error);
       markFetchFailed();
@@ -63,15 +59,9 @@ export const saavnApi = {
     }
   },
 
-  searchPlaylists: async (query: string, limit: number = 20): Promise<any> => {
+  searchPlaylists: async (query: string, limit: number = 20): Promise<unknown> => {
     try {
-      const response = await fetch(`${BASE_URL}/search/playlists?query=${encodeURIComponent(query)}&page=0&limit=${limit}`);
-      if (!response.ok) {
-        throw new Error('Playlists search failed');
-      }
-      const data = await response.json();
-      setLastFetchFailed(false);
-      return data;
+      return await fetchJson(`${BASE_URL}/search/playlists?query=${encodeURIComponent(query)}&page=0&limit=${limit}`, 'Playlists search failed');
     } catch (error) {
       console.error('Error searching playlists:', error);
       markFetchFailed();
@@ -81,13 +71,7 @@ export const saavnApi = {
 
   search: async (query: string, limit: number = 5): Promise<SearchResponse> => {
     try {
-      const response = await fetch(`${BASE_URL}/search?query=${encodeURIComponent(query)}&limit=${limit}`);
-      if (!response.ok) {
-        throw new Error('Search failed');
-      }
-      const data = await response.json();
-      setLastFetchFailed(false);
-      return data;
+      return await fetchJson(`${BASE_URL}/search?query=${encodeURIComponent(query)}&limit=${limit}`, 'Search failed');
     } catch (error) {
       console.error('Error searching:', error);
       markFetchFailed();
@@ -95,15 +79,9 @@ export const saavnApi = {
     }
   },
 
-  getSongById: async (songId: string) => {
+  getSongById: async (songId: string): Promise<unknown> => {
     try {
-      const response = await fetch(`${BASE_URL}/songs/${songId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch song');
-      }
-      const data = await response.json();
-      setLastFetchFailed(false);
-      return data;
+      return await fetchJson(`${BASE_URL}/songs/${songId}`, `Failed to fetch song: ${songId}`);
     } catch (error) {
       console.error('Error fetching song:', error);
       markFetchFailed(`Failed to fetch song: ${songId}`);
@@ -111,30 +89,14 @@ export const saavnApi = {
     }
   },
 
-  getSongsByIds: async (ids: string[]) => {
+  getSongsByIds: async (ids: string[]): Promise<unknown> => {
     try {
       const inflight = getInflight().songsByIds;
       const key = ids.join(',');
-      if (inflight.has(key)) return inflight.get(key)!;
-
-      const promise = (async () => {
+      return await withInflight(inflight, key, () => {
         const idsParam = ids.join('%2C');
-        const response = await fetch(`${BASE_URL}/songs?ids=${idsParam}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch songs');
-        }
-        const data = await response.json();
-        setLastFetchFailed(false);
-        return data;
-      })();
-
-      inflight.set(key, promise);
-      try {
-        const res = await promise;
-        return res;
-      } finally {
-        inflight.delete(key);
-      }
+        return fetchJson(`${BASE_URL}/songs?ids=${idsParam}`, 'Failed to fetch songs');
+      });
     } catch (error) {
       console.error('Error fetching songs by IDs:', error);
       markFetchFailed();
@@ -142,15 +104,9 @@ export const saavnApi = {
     }
   },
 
-  searchArtists: async (query: string, limit: number = 10): Promise<any> => {
+  searchArtists: async (query: string, limit: number = 10): Promise<unknown> => {
     try {
-      const response = await fetch(`${BASE_URL}/search/artists?query=${encodeURIComponent(query)}&page=0&limit=${limit}`);
-      if (!response.ok) {
-        throw new Error('Artists search failed');
-      }
-      const data = await response.json();
-      setLastFetchFailed(false);
-      return data;
+      return await fetchJson(`${BASE_URL}/search/artists?query=${encodeURIComponent(query)}&page=0&limit=${limit}`, 'Artists search failed');
     } catch (error) {
       console.error('Error searching artists:', error);
       markFetchFailed();
@@ -159,18 +115,13 @@ export const saavnApi = {
   },
   // List popular/recommended artists with pagination. `excludeIds` can be provided
   // to skip artists already displayed on the client.
-  listArtists: async (page: number = 0, limit: number = 24, excludeIds: string[] = []): Promise<any> => {
+  listArtists: async (page: number = 0, limit: number = 24, excludeIds: string[] = []): Promise<unknown> => {
     try {
       // The upstream API doesn't directly support exclude; we request a page and filter client-side.
-      const response = await fetch(`${BASE_URL}/artists?page=${page}&limit=${limit}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch artists');
-      }
-      const data = await response.json();
-      setLastFetchFailed(false);
+      const data = await fetchJson(`${BASE_URL}/artists?page=${page}&limit=${limit}`, 'Failed to fetch artists');
       // Filter out excluded ids if provided
       if (Array.isArray(data?.data)) {
-        data.data = (data.data as any[]).filter(a => !excludeIds.includes(a.id));
+        data.data = (data.data as AnyRecord[]).filter(a => !excludeIds.includes(String(a.id)));
       }
       return data;
     } catch (error) {
@@ -181,12 +132,9 @@ export const saavnApi = {
   },
   // Fetch 'new' artists via the search endpoint (query=new) with given page/limit.
   // Filters out any excludeIds client-side.
-  fetchNewArtists: async (page: number = 0, limit: number = 10, excludeIds: string[] = []) => {
+  fetchNewArtists: async (page: number = 0, limit: number = 10, excludeIds: string[] = []): Promise<unknown> => {
     try {
-      const response = await fetch(`${BASE_URL}/search/artists?query=new&page=${page}&limit=${limit}`);
-      if (!response.ok) throw new Error('Failed to fetch new artists');
-      const data = await response.json();
-      setLastFetchFailed(false);
+      const data = await fetchJson(`${BASE_URL}/search/artists?query=new&page=${page}&limit=${limit}`, 'Failed to fetch new artists');
 
       // Possible shapes: { data: [...] } or { data: { artists: [...] } } or { data: { results: [...] } }
       const rawItems = Array.isArray(data?.data)
@@ -202,17 +150,16 @@ export const saavnApi = {
       // Use shared getBestImage helper for image selection
 
       // Normalize each artist object to { id, name, image }
-      const normalized = rawItems.map((a: any) => {
-        const id = a.id || a.artist_id || a.artistId || a.sid || a.id_str || 'unknown-' + Math.random().toString(36).slice(2, 9);
-        const name = a.name || a.artistName || a.title || a.displayName || '';
-        let image = '';
-        image = getBestImage(a.image || a.images || a.thumbnail || a.img || a.image_url || a.cover);
+      const normalized = rawItems.map((a: AnyRecord) => {
+        const id = (a['id'] as string) || (a['artist_id'] as string) || (a['artistId'] as string) || (a['sid'] as string) || (a['id_str'] as string) || 'unknown-' + Math.random().toString(36).slice(2, 9);
+        const name = (a['name'] as string) || (a['artistName'] as string) || (a['title'] as string) || (a['displayName'] as string) || '';
+        const image = getBestImage(a['image'] ?? a['images'] ?? a['thumbnail'] ?? a['img'] ?? a['image_url'] ?? a['cover']);
         return { id, name, image };
-      }).filter((it: any) => it && it.id && it.name);
+      }).filter((it) => it && it.id && it.name);
 
-      const filtered = normalized.filter((a: any) => !excludeIds.includes(a.id));
-      if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
+      const filtered = normalized.filter((a) => !excludeIds.includes(String(a.id)));
+      if (import.meta.env.MODE !== 'production') {
+         
         console.debug('fetchNewArtists:', { page, limit, requested: rawItems.length, normalized: normalized.length, returned: filtered.length, sample: filtered[0] });
       }
       return { items: filtered, raw: data, rawItems: rawItems };
@@ -222,29 +169,11 @@ export const saavnApi = {
     }
   },
 
-  getArtistSongs: async (artistId: string, page: number = 0, sortBy: string = 'popularity', sortOrder: string = 'desc'): Promise<any> => {
+  getArtistSongs: async (artistId: string, page: number = 0, sortBy: string = 'popularity', sortOrder: string = 'desc'): Promise<unknown> => {
     try {
       const inflight = getInflight().artists;
       const key = `${artistId}::${page}::${sortBy}::${sortOrder}`;
-      if (inflight.has(key)) return inflight.get(key)!;
-
-      const promise = (async () => {
-        const response = await fetch(`${BASE_URL}/artists/${artistId}/songs?page=${page}&sortBy=${sortBy}&sortOrder=${sortOrder}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch artist songs');
-        }
-        const data = await response.json();
-        setLastFetchFailed(false);
-        return data;
-      })();
-
-      inflight.set(key, promise);
-      try {
-        const res = await promise;
-        return res;
-      } finally {
-        inflight.delete(key);
-      }
+      return await withInflight(inflight, key, () => fetchJson(`${BASE_URL}/artists/${artistId}/songs?page=${page}&sortBy=${sortBy}&sortOrder=${sortOrder}`, 'Failed to fetch artist songs'));
     } catch (error) {
       console.error('Error fetching artist songs:', error);
       markFetchFailed();
@@ -252,29 +181,11 @@ export const saavnApi = {
     }
   },
 
-  getPlaylistById: async (playlistId: string, limit: number = 100): Promise<any> => {
+  getPlaylistById: async (playlistId: string, limit: number = 100): Promise<unknown> => {
     // Dedupe in-flight playlist requests so multiple callers share the same Promise
     try {
       const inflight = getInflight().playlists;
-      if (inflight.has(playlistId)) return inflight.get(playlistId)!;
-
-      const promise = (async () => {
-        const response = await fetch(`${BASE_URL}/playlists?id=${playlistId}&limit=${limit}&page=0`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch playlist');
-        }
-        const data = await response.json();
-        setLastFetchFailed(false);
-        return data;
-      })();
-
-      inflight.set(playlistId, promise);
-      try {
-        const res = await promise;
-        return res;
-      } finally {
-        inflight.delete(playlistId);
-      }
+      return await withInflight(inflight, playlistId, () => fetchJson(`${BASE_URL}/playlists?id=${playlistId}&limit=${limit}&page=0`, 'Failed to fetch playlist'));
     } catch (error) {
       console.error('Error fetching playlist:', error);
       markFetchFailed();
@@ -282,47 +193,30 @@ export const saavnApi = {
     }
   },
 
-  getAlbumById: async (albumId: string, limit: number = 100): Promise<any> => {
+  getAlbumById: async (albumId: string, limit: number = 100): Promise<unknown> => {
     // Dedupe in-flight album requests so multiple callers share the same Promise
     try {
       const inflight = getInflight().albums;
       if (inflight.has(albumId)) return inflight.get(albumId)!;
 
-      const promise = (async () => {
-        const response = await fetch(`${BASE_URL}/albums?id=${albumId}&limit=${limit}&page=0`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch album');
-        }
-        const data = await response.json();
-        setLastFetchFailed(false);
+      return await withInflight(inflight, albumId, async () => {
+        const data = await fetchJson(`${BASE_URL}/albums?id=${albumId}&limit=${limit}&page=0`, 'Failed to fetch album');
 
-        // Normalize response shape: some upstream responses may place songs
-        // at `data.songs`, `songs`, or directly under `data` as an array.
         try {
           const songsFromData = Array.isArray(data?.data?.songs) ? data.data.songs :
             Array.isArray(data?.songs) ? data.songs :
             Array.isArray(data?.data) ? data.data : [];
 
-          // If we found songs at a top-level path but not under data.songs,
-          // ensure callers always see `response.data.songs` populated.
           if (!Array.isArray(data?.data?.songs) && songsFromData.length > 0) {
             data.data = data.data || {};
             data.data.songs = songsFromData;
           }
-        } catch (err) {
+        } catch {
           // ignore normalization errors and return raw data
         }
 
         return data;
-      })();
-
-      inflight.set(albumId, promise);
-      try {
-        const res = await promise;
-        return res;
-      } finally {
-        inflight.delete(albumId);
-      }
+      });
     } catch (error) {
       console.error('Error fetching album:', error);
       markFetchFailed();
@@ -330,29 +224,11 @@ export const saavnApi = {
     }
   },
 
-  getArtistById: async (artistId: string): Promise<any> => {
+  getArtistById: async (artistId: string): Promise<unknown> => {
     try {
       const inflight = getInflight().artists;
       const key = `artist_meta::${artistId}`;
-      if (inflight.has(key)) return inflight.get(key)!;
-
-      const promise = (async () => {
-        const response = await fetch(`${BASE_URL}/artists/${artistId}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch artist');
-        }
-        const data = await response.json();
-        setLastFetchFailed(false);
-        return data;
-      })();
-
-      inflight.set(key, promise);
-      try {
-        const res = await promise;
-        return res;
-      } finally {
-        inflight.delete(key);
-      }
+      return await withInflight(inflight, key, () => fetchJson(`${BASE_URL}/artists/${artistId}`, 'Failed to fetch artist'));
     } catch (error) {
       console.error('Error fetching artist:', error);
       markFetchFailed();
@@ -360,15 +236,9 @@ export const saavnApi = {
     }
   },
 
-  searchAlbums: async (query: string, limit: number = 20): Promise<any> => {
+  searchAlbums: async (query: string, limit: number = 20): Promise<unknown> => {
     try {
-      const response = await fetch(`${BASE_URL}/search/albums?query=${encodeURIComponent(query)}&page=0&limit=${limit}`);
-      if (!response.ok) {
-        throw new Error('Albums search failed');
-      }
-      const data = await response.json();
-      setLastFetchFailed(false);
-      return data;
+      return await fetchJson(`${BASE_URL}/search/albums?query=${encodeURIComponent(query)}&page=0&limit=${limit}`, 'Albums search failed');
     } catch (error) {
       console.error('Error searching albums:', error);
       markFetchFailed();
@@ -377,24 +247,21 @@ export const saavnApi = {
   },
 
   // Fetch top/trending searches
-  fetchTopSearches: async (limit: number = 12): Promise<{ items: any[] }> => {
+  fetchTopSearches: async (limit: number = 12): Promise<{ items: AnyRecord[] }> => {
     try {
       // Simple in-memory inflight / memo to avoid duplicate calls (React StrictMode double-invoke)
       const key = `top::${limit}`;
-      if (!(saavnApi as any)._cache) (saavnApi as any)._cache = {};
-      const cache = (saavnApi as any)._cache as Record<string, Promise<{ items: any[] }>>;
-      if (cache[key]) return cache[key];
+      if (!(saavnApi as unknown as AnyRecord)._cache) (saavnApi as unknown as AnyRecord)._cache = {} as unknown as AnyRecord;
+      const cache = (saavnApi as unknown as AnyRecord)._cache as Record<string, Promise<{ items: AnyRecord[] }> | undefined>;
+      if (cache[key]) return cache[key]!;
 
       const promise = (async () => {
-        const response = await fetch(`${BASE_URL}/search/top?limit=${limit}`);
-        if (!response.ok) throw new Error('Failed to fetch top searches');
-        const data = await response.json();
-        setLastFetchFailed(false);
+        const data = await fetchJson(`${BASE_URL}/search/top?limit=${limit}`, 'Failed to fetch top searches');
 
         // Normalize response. Upstream returns { data: { results: [...] } }
         const raw = Array.isArray(data?.data?.results) ? data.data.results : Array.isArray(data?.results) ? data.results : Array.isArray(data?.data) ? data.data : [];
 
-        const items = (raw as any[]).map((it: any) => {
+        const items = (raw as AnyRecord[]).map((it: AnyRecord) => {
           if (!it) return null;
           if (typeof it === 'string') return { type: 'query', name: it, payload: it };
 
@@ -437,23 +304,13 @@ export const saavnApi = {
     }
   },
 
-  getSongSuggestions: async (songId: string, limit: number = 5): Promise<any> => {
+  getSongSuggestions: async (songId: string, limit: number = 5): Promise<unknown> => {
     try {
       // Make sure songId doesn't have any encoding issues
       const cleanSongId = encodeURIComponent(songId.trim());
       const url = `${BASE_URL}/songs/${cleanSongId}/suggestions?limit=${limit}`;
       
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error:', response.status, errorText);
-        throw new Error(`Failed to fetch song suggestions: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setLastFetchFailed(false);
-      return data;
+      return await fetchJson(url, `Failed to fetch song suggestions for ${songId}`);
     } catch (error) {
       console.error('Error fetching song suggestions:', error);
       markFetchFailed();
@@ -466,7 +323,7 @@ export const saavnApi = {
   // `top_playlists` / `new_trending` for latest albums and trending
   // playlists. The response shape can vary, so callers should access
   // nested properties defensively.
-  launch: async (): Promise<any> => {
+  launch: async (): Promise<unknown> => {
     try {
       const inflight = getInflight().launches;
       const key = 'launch';

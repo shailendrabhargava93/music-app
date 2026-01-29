@@ -20,7 +20,7 @@ const SearchPage = lazy(() => import('./pages/SearchPage'));
 import { Song, CurrentSong } from './types/api';
 import { saavnApi } from './services/saavnApi';
 import { soundChartsApi, SoundChartsItem } from './services/soundChartsApi';
-import { saveSongMetadata, saveDownloadRecord, setMeta, getDownloadRecord, getMeta, migrateLocalStorage, readFavourites, persistFavourites, FAVOURITE_SONGS_KEY } from './services/storage';
+import { saveSongMetadata, saveDownloadRecord, setMeta, getDownloadRecord, getMeta, migrateLocalStorage, readFavourites, persistFavourites, FAVOURITE_SONGS_KEY, readLocalJson, writeLocalJson } from './services/storage';
 import { subscribeNetworkStatus } from './services/networkStatus';
 import {
   decodeHtmlEntities,
@@ -66,7 +66,7 @@ function App() {
   // Theme state with localStorage persistence
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
-    return savedTheme ? savedTheme === 'dark' : true; // Default to dark
+    return savedTheme ? savedTheme === 'dark' : true;
   });
 
   // Bottom nav text visibility state
@@ -78,8 +78,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [fullPlayerOpen, setFullPlayerOpen] = useState(false);
   const [currentSong, setCurrentSong] = useState<CurrentSong | null>(() => {
-    const saved = localStorage.getItem('lastSong');
-    return saved ? JSON.parse(saved) : null;
+    return readLocalJson<CurrentSong | null>('lastSong', null);
   });
   const [isPlaying, setIsPlaying] = useState(() => {
     const saved = localStorage.getItem('isPlaying');
@@ -140,30 +139,28 @@ function App() {
         return;
       }
       try {
-        const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
-        const exists = favourites.some((fav: any) => fav.id === currentSong.id);
-        setIsFavorite(exists);
-      } catch (error) {
+        const favourites = (await readFavourites(FAVOURITE_SONGS_KEY)) as Array<{ id?: string }>;
+        const exists = favourites.some((fav) => fav.id === currentSong.id);
+        setIsFavorite(Boolean(exists));
+      } catch {
         setIsFavorite(false);
       }
     };
     checkFavorite();
-  }, [currentSong?.id]);
+  }, [currentSong]);
 
   // Toggle favorite for current song
   const handleToggleFavorite = useCallback(async () => {
     if (!currentSong) return;
     
     try {
-      const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
-      const exists = favourites.some((fav: any) => fav.id === currentSong.id);
+      const favourites = (await readFavourites(FAVOURITE_SONGS_KEY)) as Array<{ id?: string }>;
+      const exists = favourites.some((fav) => fav.id === currentSong.id);
       
       if (exists) {
-        const updated = favourites.filter((fav: any) => fav.id !== currentSong.id);
+        const updated = favourites.filter((fav) => fav.id !== currentSong.id);
         await persistFavourites(FAVOURITE_SONGS_KEY, updated);
         setIsFavorite(false);
-        setSnackbarMessage('Removed from favourites');
-        setSnackbarOpen(true);
       } else {
         const newFav = {
           id: currentSong.id,
@@ -174,10 +171,9 @@ function App() {
         };
         await persistFavourites(FAVOURITE_SONGS_KEY, [...favourites, newFav]);
         setIsFavorite(true);
-        setSnackbarMessage('Added to favourites ❤️');
-        setSnackbarOpen(true);
       }
     } catch (error) {
+       
       console.warn('Unable to toggle favorite', error);
     }
   }, [currentSong]);
@@ -275,12 +271,12 @@ function App() {
     image?: string;
     type?: string;
     sourceTab?: string;
-    previous?: any;
+    previous?: Record<string, unknown> | null;
   } | null>(null);
   // Popstate handler: map history state into app UI state
   useEffect(() => {
   const onPopState = (ev: PopStateEvent) => {
-    const state = ev && (ev as any).state ? (ev as any).state : undefined;
+    const state = (ev as unknown as { state?: unknown })?.state;
     // If this is our app's state object, map it to app UI state
     if (state && state.app === 'wave') {
       const view = state.view as string | undefined;
@@ -301,13 +297,13 @@ function App() {
       } else if (view === 'fullplayer') {
         setFullPlayerOpen(true);
       }
-    } else {
+      } else {
       // If the popped state is not ours, re-insert a home state to avoid exiting
       try {
         const home = { app: 'wave', view: 'home' };
         window.history.replaceState(home, '');
-      } catch (err) {
-        // ignore
+      } catch {
+        void 0; // ignore
       }
     }
   };
@@ -324,7 +320,7 @@ function App() {
       if (selectedPlaylist) {
         window.history.pushState({ app: 'wave', view: 'playlist', id: selectedPlaylist.id }, '');
       }
-    } catch (err) {
+    } catch {
       // ignore
     }
   }, [selectedPlaylist]);
@@ -334,7 +330,7 @@ function App() {
       if (showAllCharts) {
         window.history.pushState({ app: 'wave', view: 'charts' }, '');
       }
-    } catch (err) {
+    } catch {
       // ignore
     }
   }, [showAllCharts]);
@@ -344,7 +340,7 @@ function App() {
       if (showRecentlyPlayed) {
         window.history.pushState({ app: 'wave', view: 'recent' }, '');
       }
-    } catch (err) {
+    } catch {
       // ignore
     }
   }, [showRecentlyPlayed]);
@@ -356,7 +352,7 @@ function App() {
       if (fullPlayerOpen) {
         window.history.pushState({ app: 'wave', view: 'fullplayer' }, '');
       }
-    } catch (err) {
+    } catch {
       // ignore
     }
   }, [fullPlayerOpen]);
@@ -374,7 +370,7 @@ function App() {
   // Save current song and progress to localStorage
   useEffect(() => {
     if (currentSong) {
-      localStorage.setItem('lastSong', JSON.stringify(currentSong));
+      writeLocalJson('lastSong', currentSong);
       localStorage.setItem('lastSongProgress', songProgress.toString());
     }
   }, [currentSong, songProgress]);
@@ -642,7 +638,7 @@ function App() {
   };
 
   // Decode HTML entities in strings
-  const handleSongSelect = async (song: Song | string, contextSongs?: Song[], options?: { smooth?: boolean }) => {
+  const handleSongSelect = useCallback(async (song: Song | string, contextSongs?: Song[], options?: { smooth?: boolean }) => {
     try {
       // Set loading state
       setIsLoadingSong(true);
@@ -654,7 +650,7 @@ function App() {
           if (resp?.success && resp.data && resp.data.length > 0) {
             songObj = resp.data[0];
           }
-        } catch (err) {
+        } catch {
           // If offline, saavnApi will have marked network status; still treat as unable to fetch
           setIsLoadingSong(false);
           return;
@@ -684,7 +680,7 @@ function App() {
           if (out) {
             for (let i = 0; i < steps; i++) {
               audio.volume = Math.max(0, audio.volume - (1 / steps));
-              // eslint-disable-next-line no-await-in-loop
+               
               await new Promise(r => setTimeout(r, stepTime));
             }
             audio.pause();
@@ -692,18 +688,18 @@ function App() {
             audio.play().catch(() => {});
             for (let i = 0; i < steps; i++) {
               audio.volume = Math.min(1, audio.volume + (1 / steps));
-              // eslint-disable-next-line no-await-in-loop
+               
               await new Promise(r => setTimeout(r, stepTime));
             }
           }
-        } catch (err) {
-          // ignore
+        } catch {
+          void 0; // ignore
         }
       };
 
       if (smooth) {
         // fade out current audio before switching
-        try { await fade(true); } catch (err) {}
+          try { await fade(true); } catch { void 0; }
       }
 
       // Fetch complete song details with download URLs
@@ -717,7 +713,7 @@ function App() {
       
       const songDetails = songDetailsResponse.data[0];
       
-      const getHighQualityImage = (images: any) => getBestImage(images);
+      const getHighQualityImage = (images: unknown) => getBestImage(images);
 
       const getHighQualityAudio = (downloadUrls: Array<{ quality: string; url?: string; link?: string }>) => {
         if (!downloadUrls || downloadUrls.length === 0) return '';
@@ -764,7 +760,7 @@ function App() {
 
       if (!audioUrl) {
         if (smooth) {
-          try { await fade(false); } catch (err) {}
+          try { await fade(false); } catch { void 0; }
         }
         setIsLoadingSong(false);
         return;
@@ -798,8 +794,8 @@ function App() {
       setIsPlaying(true);
       setIsLoadingSong(false);
 
-      if (smooth) {
-        try { await fade(false); } catch (err) {}
+        if (smooth) {
+        try { await fade(false); } catch { void 0; }
       }
       
       // Add to recently played in localStorage with complete song details
@@ -841,7 +837,7 @@ function App() {
       console.warn('Failed to load song details', error);
       setIsLoadingSong(false);
     }
-  };
+  }, [audio, ensureOfflineAudioUrl, trackBlobUrl, selectedPlaylist]);
 
   const handleProgressSeek = useCallback((newTime: number) => {
     setSongProgress(newTime);
@@ -899,7 +895,7 @@ function App() {
     if (nextChartSong?.saavnData) {
       handleSongSelect(nextChartSong.saavnData);
     }
-  }, [songQueue, currentContextSongs, currentSong, shuffleMode, repeatMode, chartSongs]);
+  }, [songQueue, currentContextSongs, currentSong, shuffleMode, repeatMode, chartSongs, handleSongSelect]);
 
   const handlePreviousSong = useCallback(() => {
     // Try from current context first
@@ -929,7 +925,7 @@ function App() {
     if (previousChartSong?.saavnData) {
       handleSongSelect(previousChartSong.saavnData);
     }
-  }, [currentContextSongs, currentSong, chartSongs]);
+  }, [currentContextSongs, currentSong, chartSongs, handleSongSelect]);
 
   const handlePlaylistSelect = (playlistId: string, playlistName: string, playlistImage: string) => {
     setSelectedPlaylist({ id: playlistId, name: playlistName, image: playlistImage, type: 'playlist', sourceTab: activeTab });
@@ -946,7 +942,7 @@ function App() {
   const handleBackFromPlaylist = () => {
     // If we have a previous selected playlist (e.g., navigated artist -> album), restore it
     if (selectedPlaylist?.previous) {
-      setSelectedPlaylist(selectedPlaylist.previous as any);
+      setSelectedPlaylist(selectedPlaylist.previous as Record<string, unknown> | null);
       return;
     }
     const sourceTab = selectedPlaylist?.sourceTab || 'home';
@@ -1127,7 +1123,7 @@ function App() {
       audio.removeEventListener('timeupdate', updateProgress);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [audio, handleNextSong]);
+  }, [audio, handleNextSong, repeatMode]);
 
   const handleFavouriteSongSelect = async (songId: string) => {
     // Load the song by ID from Saavn
@@ -1212,6 +1208,10 @@ function App() {
             onAddToQueue={handleAddToQueue}
             onPlayNext={handlePlayNext}
             onAlbumSelect={handleAlbumSelect}
+            onShowSnackbar={(msg) => {
+              setSnackbarMessage(msg);
+              setSnackbarOpen(true);
+            }}
           />
         );
       }
@@ -1336,6 +1336,7 @@ function App() {
                 songTitle={currentSong.title}
                 artist={currentSong.artist}
                 albumArt={currentSong.albumArt}
+                songId={currentSong.id}
                 isPlaying={isPlaying}
                 isLoading={isLoadingSong}
                 progress={songProgress}
@@ -1345,7 +1346,14 @@ function App() {
                 onNextSong={handleNextSong}
                 onPreviousSong={handlePreviousSong}
                 isFavorite={isFavorite}
-                onToggleFavorite={handleToggleFavorite}
+                onToggleFavorite={(v?: boolean) => {
+                  if (typeof v === 'boolean') {
+                    setIsFavorite(Boolean(v));
+                  } else {
+                    handleToggleFavorite();
+                  }
+                }}
+                onShowSnackbar={(msg) => { setSnackbarMessage(msg); setSnackbarOpen(true); }}
               />
               <FullPlayer 
                 open={fullPlayerOpen} 
@@ -1354,6 +1362,7 @@ function App() {
                 songTitle={currentSong.title}
                 artist={currentSong.artist}
                 albumArt={currentSong.albumArt}
+                isFavorite={isFavorite}
                 duration={currentSong.duration}
                 isPlaying={isPlaying}
                 onTogglePlay={() => setIsPlaying(!isPlaying)}
@@ -1394,6 +1403,8 @@ function App() {
                 language={currentSong.language}
                 explicitContent={currentSong.explicitContent}
                 source={currentSong.source}
+                onShowSnackbar={(msg) => { setSnackbarMessage(msg); setSnackbarOpen(true); }}
+                onFavouriteChange={(v: boolean) => setIsFavorite(Boolean(v))}
                 />
               </Suspense>
             </>

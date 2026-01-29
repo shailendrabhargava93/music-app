@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, List, IconButton, Menu, MenuItem, ListItemIcon, Container } from '@mui/material';
-import SongItemSkeleton from '../components/SongItemSkeleton';
-import { PlayArrow, ArrowBack, ClearAll, MoreVertical, PlaylistAdd, QueueMusic, Favorite } from '../icons';
+import { Box, IconButton } from '@mui/material';
+import TrackList from '../components/TrackList';
+import PageHeader from '../components/PageHeader';
+import { ClearAll, MoreVertical } from '../icons';
 import { Song } from '../types/api';
 import SongItem from '../components/SongItem';
 import { FAVOURITE_SONGS_KEY, getMeta, persistFavourites, readFavourites, setMeta } from '../services/storage';
+import SongContextMenu from '../components/SongContextMenu';
 import { decodeHtmlEntities } from '../utils/normalize';
 
 interface RecentlyPlayedPageProps {
@@ -15,11 +17,13 @@ interface RecentlyPlayedPageProps {
   onShowSnackbar?: (message: string) => void;
 }
 
-const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongSelect, onAddToQueue, onPlayNext, onShowSnackbar }) => {
+const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongSelect, onAddToQueue, onPlayNext }) => {
+  type AnyRecord = Record<string, unknown>;
   const [recentSongs, setRecentSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [selectedIsFavourite, setSelectedIsFavourite] = useState<boolean>(false);
 
   useEffect(() => {
     const loadRecentSongs = async () => {
@@ -28,8 +32,8 @@ const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongS
         if (stored && Array.isArray(stored)) {
           setRecentSongs(stored);
         }
-      } catch (error) {
-        console.warn('Unable to load recently played', error);
+      } catch {
+        console.warn('Unable to load recently played');
       }
       setLoading(false);
     };
@@ -41,6 +45,15 @@ const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongS
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
     setSelectedSong(song);
+    (async () => {
+      try {
+        const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
+        const exists = (favourites as unknown[]).some((fav: AnyRecord) => (fav['id'] as string) === song.id);
+        setSelectedIsFavourite(Boolean(exists));
+      } catch {
+        setSelectedIsFavourite(false);
+      }
+    })();
   };
 
   const handleMenuClose = () => {
@@ -73,24 +86,21 @@ const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongS
     if (selectedSong) {
       try {
         const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
-        const exists = favourites.some((fav: any) => fav.id === selectedSong.id);
-        
+        const exists = (favourites as unknown[]).some((fav: AnyRecord) => (fav['id'] as string) === selectedSong.id);
+
         if (!exists) {
           const newFav = {
             id: selectedSong.id,
             name: selectedSong.name,
             artist: selectedSong.primaryArtists || 'Unknown Artist',
-            albumArt: getImageUrl(selectedSong.image),
+            albumArt: getImageUrl(selectedSong.image as unknown[]),
             addedAt: Date.now(),
           };
-          const updated = [...favourites, newFav];
-          await persistFavourites(FAVOURITE_SONGS_KEY, updated);
-          if (onShowSnackbar) {
-            onShowSnackbar('Added to favourites ❤️');
-          }
+          const updated = [...(favourites as unknown[]), newFav];
+          await persistFavourites(FAVOURITE_SONGS_KEY, updated as unknown[]);
         }
-      } catch (error) {
-        console.warn('Unable to update favourite songs', error);
+      } catch {
+        console.warn('Unable to update favourite songs');
       }
     }
     handleMenuClose();
@@ -99,63 +109,33 @@ const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongS
   const handleClearRecent = async () => {
     try {
       await setMeta('recentlyPlayed', []);
-    } catch (error) {
-      console.warn('Unable to clear recent songs', error);
+    } catch {
+      console.warn('Unable to clear recent songs');
     }
     setRecentSongs([]);
   };
 
   // use shared `decodeHtmlEntities` from utils
 
-  const getImageUrl = (imageArray: any[]): string => {
-    if (!Array.isArray(imageArray) || imageArray.length === 0) {
-      return '';
-    }
-
+  const getImageUrl = (imageArray: unknown[]): string => {
+    if (!Array.isArray(imageArray) || imageArray.length === 0) return '';
     const qualities = ['150x150', '500x500', '50x50'];
-    
     for (const quality of qualities) {
-      const img = imageArray.find((img: any) => img.quality === quality);
-      if (img) {
-        return img.url || img.link || '';
-      }
+      const img = (imageArray as AnyRecord[]).find(i => (i?.quality as string) === quality);
+      if (img) return (img?.url as string) || (img?.link as string) || '';
     }
-
-    return imageArray[0]?.url || imageArray[0]?.link || '';
+    const first = (imageArray as AnyRecord[])[0];
+    return (first?.url as string) || (first?.link as string) || '';
   };
 
   return (
     <Box sx={{ pb: 14, pt: 0 }}>
-      {/* Fixed header */}
-      <Box
-        sx={(theme) => ({
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: theme.zIndex.appBar,
-          width: '100%',
-          backgroundColor: theme.palette.background.default,
-          boxShadow: `0 1px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)'}`,
-          py: 0.325,
-        })}
-      >
-        <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', gap: 1, px: { xs: 1, sm: 1.25 } }}>
-          <IconButton
-            onClick={onBack}
-            sx={{
-              color: 'text.primary',
-              '&:hover': {
-                bgcolor: 'action.hover',
-              },
-            }}
-          >
-            <ArrowBack />
-          </IconButton>
-          <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, fontSize: '1.1rem', flex: 1, pl: 0.5 }} noWrap>
-            Recently Played
-          </Typography>
-          {recentSongs.length > 0 && (
+      <PageHeader
+        title="Recently Played"
+        onBack={onBack}
+        position="fixed"
+        rightActions={
+          recentSongs.length > 0 ? (
             <IconButton
               onClick={handleClearRecent}
               size="small"
@@ -164,79 +144,45 @@ const RecentlyPlayedPage: React.FC<RecentlyPlayedPageProps> = ({ onBack, onSongS
             >
               <ClearAll />
             </IconButton>
-          )}
-        </Container>
-      </Box>
+          ) : null
+        }
+      />
 
-      {/* Spacer to offset fixed header height */}
-      <Box sx={{ height: { xs: 56, sm: 64 }, width: '100%' }} />
+      <TrackList
+        items={recentSongs}
+        loading={loading}
+        skeletonCount={6}
+        emptyMessage="No recently played songs"
+        keyExtractor={(s: Song) => s.id}
+        renderItem={(song: Song) => (
+          <SongItem
+            key={song.id}
+            title={decodeHtmlEntities(song.name)}
+            artist={decodeHtmlEntities(song.primaryArtists || 'Unknown Artist')}
+            imageSrc={getImageUrl(song.image)}
+            onClick={() => onSongSelect(song, recentSongs)}
+            rightContent={
+              <IconButton
+                edge="end"
+                onClick={(e) => handleMenuOpen(e, song)}
+              >
+                <MoreVertical />
+              </IconButton>
+            }
+          />
+        )}
+      />
 
-      {/* Songs List */}
-      {loading ? (
-        <Box sx={{ px: 2 }}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SongItemSkeleton key={i} />
-          ))}
-        </Box>
-      ) : recentSongs.length === 0 ? (
-        <Box sx={{ textAlign: 'center', mt: 8, px: 2 }}>
-          <Typography variant="body1" color="text.secondary">
-            No recently played songs
-          </Typography>
-        </Box>
-      ) : (
-        <List sx={{ px: 2 }}>
-          {recentSongs.map((song) => (
-            <SongItem
-              key={song.id}
-              title={decodeHtmlEntities(song.name)}
-              artist={decodeHtmlEntities(song.primaryArtists || 'Unknown Artist')}
-              imageSrc={getImageUrl(song.image)}
-              onClick={() => onSongSelect(song, recentSongs)}
-              rightContent={
-                <IconButton
-                  edge="end"
-                  onClick={(e) => handleMenuOpen(e, song)}
-                >
-                  <MoreVertical />
-                </IconButton>
-              }
-            />
-          ))}
-        </List>
-      )}
-
-      {/* Context Menu */}
-      <Menu
+      <SongContextMenu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
-      >
-        <MenuItem onClick={handlePlayNow}>
-          <ListItemIcon>
-            <PlayArrow fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">Play Now</Typography>
-        </MenuItem>
-        <MenuItem onClick={handlePlayNext}>
-          <ListItemIcon>
-            <PlaylistAdd fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">Play Next</Typography>
-        </MenuItem>
-        <MenuItem onClick={handleAddToQueue}>
-          <ListItemIcon>
-            <QueueMusic fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">Add to Queue</Typography>
-        </MenuItem>
-        <MenuItem onClick={handleAddToFavourites}>
-          <ListItemIcon>
-            <Favorite fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">Add to Favourites</Typography>
-        </MenuItem>
-      </Menu>
+        onPlayNow={handlePlayNow}
+        onPlayNext={handlePlayNext}
+        onAddToQueue={handleAddToQueue}
+        onAddToFavourites={handleAddToFavourites}
+        isFavourite={selectedIsFavourite}
+      />
     </Box>
   );
 };

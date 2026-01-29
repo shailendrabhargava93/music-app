@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Container, Typography, Avatar, IconButton, Skeleton, CircularProgress } from '@mui/material';
-import { ArrowBack, PlusSquare, Person } from '../icons';
+import { Box, Container, Typography, Avatar, Skeleton, CircularProgress } from '@mui/material';
+import { PlusSquare, Person } from '../icons';
+import PageHeader from '../components/PageHeader';
 import { getMeta } from '../services/storage';
 import { saavnApi } from '../services/saavnApi';
 
@@ -11,6 +12,8 @@ interface ArtistPreview {
 }
 
 const ARTIST_AVATAR_SIZE = 120;
+
+type AnyRecord = Record<string, unknown>;
 
 const ArtistsPage: React.FC<{ onBack: () => void; onArtistSelect?: (id?: string, name?: string, image?: string) => void }> = ({ onBack, onArtistSelect }) => {
   const [artists, setArtists] = useState<ArtistPreview[]>([]);
@@ -40,8 +43,8 @@ const ArtistsPage: React.FC<{ onBack: () => void; onArtistSelect?: (id?: string,
             setPage(1);
             setHasMore(items.length >= 20);
           }
-        } catch (err) {
-          // ignore
+        } catch {
+          void 0;
         } finally {
           setLoading(false);
         }
@@ -52,13 +55,7 @@ const ArtistsPage: React.FC<{ onBack: () => void; onArtistSelect?: (id?: string,
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: 14 }}>
-      <Box sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1200, backgroundColor: 'background.default', py: 0.5 }}>
-        <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton onClick={onBack} sx={{ color: 'text.primary' }}><ArrowBack /></IconButton>
-          <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>All Artists</Typography>
-        </Container>
-      </Box>
-      <Box sx={{ height: 56 }} />
+      <PageHeader title="All Artists" onBack={onBack} position="fixed" />
       <Container maxWidth="sm" sx={{ px: 2, pt: 2 }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 2 }}>
           {loading
@@ -86,16 +83,16 @@ const ArtistsPage: React.FC<{ onBack: () => void; onArtistSelect?: (id?: string,
                     try {
                       const exclude = artists.map(a => a.id).filter(Boolean) as string[];
                       let currentPage = page;
-                      let resp: any = null;
-                      let items: any[] = [];
+                      let resp: unknown = null;
+                      let items: AnyRecord[] = [];
                       // Try up to 3 pages ahead if API returns only excluded items
                       const maxRetries = 3;
                       let attempts = 0;
                       while (attempts <= maxRetries) {
-                        resp = await saavnApi.fetchNewArtists(currentPage, limit, exclude);
-                        items = Array.isArray(resp?.items) ? resp.items : [];
+                        resp = await saavnApi.fetchNewArtists(currentPage, limit, exclude) as unknown;
+                        items = Array.isArray((resp as AnyRecord)?.items) ? ((resp as AnyRecord).items as AnyRecord[]) : [];
                         if (process.env.NODE_ENV !== 'production') {
-                          // eslint-disable-next-line no-console
+                           
                           console.debug('ArtistsPage.loadMore -> fetched items:', { page: currentPage, fetched: items.length, sample: items[0] });
                         }
                         if (items.length > 0) break;
@@ -119,8 +116,8 @@ const ArtistsPage: React.FC<{ onBack: () => void; onArtistSelect?: (id?: string,
                       } else {
                         setHasMore(false);
                       }
-                    } catch (err) {
-                      // ignore
+                    } catch {
+                      void 0;
                     } finally {
                       setLoadingMore(false);
                     }

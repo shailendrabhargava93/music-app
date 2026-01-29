@@ -9,6 +9,7 @@ interface SongItemProps {
   rightContent?: React.ReactNode;
   highlight?: boolean;
   playing?: boolean;
+  meta?: React.ReactNode;
 }
 
 const SongItem: React.FC<SongItemProps> = ({
@@ -19,6 +20,7 @@ const SongItem: React.FC<SongItemProps> = ({
   rightContent,
   highlight = false,
   playing = false,
+  meta,
 }) => {
   return (
     <Box
@@ -140,6 +142,11 @@ const SongItem: React.FC<SongItemProps> = ({
             {artist}
           </Typography>
         )}
+              {meta && (
+                <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mt: 0.25 }}>
+                  {meta}
+                </Typography>
+              )}
       </Box>
 
       {rightContent}

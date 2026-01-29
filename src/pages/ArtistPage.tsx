@@ -1,36 +1,54 @@
 import React, { useEffect, useState } from 'react';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import { MoreVertical } from '../icons';
+import PageHeader from '../components/PageHeader';
 // About dialog removed per request
 import { Box, Container, Typography, Avatar, IconButton, Skeleton, List, Chip, Button } from '@mui/material';
-import { ArrowBack, PlayArrow, Album, QueueMusic, PlaylistAdd, Verified, Language, Favorite, PeopleAlt, Person } from '../icons';
+import { PlayArrow, Album, Verified, Language, Favorite, PeopleAlt, Person } from '../icons';
 import { saavnApi } from '../services/saavnApi';
-import { FAVOURITE_SONGS_KEY, persistFavourites, readFavourites } from '../services/storage';
+import { FAVOURITE_SONGS_KEY, FAVOURITE_ARTISTS_KEY, persistFavourites, readFavourites } from '../services/storage';
 import SongItem from '../components/SongItem';
+import SongContextMenu from '../components/SongContextMenu';
+import FavouriteToggle from '../components/FavouriteToggle';
+import HorizontalScroller from '../components/HorizontalScroller';
 import { decodeHtmlEntities, joinArtistNames, formatCountShort, getBestImage } from '../utils/normalize';
+
+type AnyRecord = Record<string, unknown>;
 
 interface ArtistPageProps {
   artistId: string;
   artistName?: string;
   artistImage?: string;
   onBack: () => void;
-  onSongSelect?: (song: any, context?: any[]) => void;
-  onAddToQueue?: (song: any) => void;
-  onPlayNext?: (song: any) => void;
+  onSongSelect?: (song: AnyRecord | unknown, context?: AnyRecord[] | unknown[]) => void;
+  onAddToQueue?: (song: AnyRecord | unknown) => void;
+  onPlayNext?: (song: AnyRecord | unknown) => void;
   onAlbumSelect?: (albumId: string, albumName: string, albumImage: string) => void;
+  onShowSnackbar?: (message: string) => void;
 }
 
-const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistImage, onBack, onSongSelect, onAddToQueue, onPlayNext, onAlbumSelect }) => {
+const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistImage, onBack, onSongSelect, onAddToQueue, onPlayNext, onAlbumSelect, onShowSnackbar }) => {
   const [loading, setLoading] = useState(true);
-  const [artistData, setArtistData] = useState<any>(null);
-  const [topSongs, setTopSongs] = useState<any[]>([]);
-  const [topAlbums, setTopAlbums] = useState<any[]>([]);
-  const [singles, setSingles] = useState<any[]>([]);
+  const [artistData, setArtistData] = useState<AnyRecord | null>(null);
+  const [topSongs, setTopSongs] = useState<AnyRecord[]>([]);
+  const [topAlbums, setTopAlbums] = useState<AnyRecord[]>([]);
+  const [singles, setSingles] = useState<AnyRecord[]>([]);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
-  const [menuTarget, setMenuTarget] = useState<any>(null);
+  const [menuTarget, setMenuTarget] = useState<AnyRecord | null>(null);
   const [isFavouriteLocal, setIsFavouriteLocal] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const favs = await readFavourites(FAVOURITE_ARTISTS_KEY);
+        const exists = (favs as AnyRecord[]).some((a) => (a['id'] as string) === artistId);
+        if (mounted) setIsFavouriteLocal(Boolean(exists));
+      } catch {
+        if (mounted) setIsFavouriteLocal(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [artistId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -40,14 +58,14 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
         const resp = await saavnApi.getArtistById(artistId);
         if (!isMounted) return;
         const data = resp?.data ?? resp;
-        setArtistData(data);
+        setArtistData(data as AnyRecord);
 
         // topSongs/topAlbums/singles may be nested under data
-        setTopSongs(Array.isArray(data?.topSongs) ? data.topSongs : (Array.isArray(data?.top_songs) ? data.top_songs : []));
-        setTopAlbums(Array.isArray(data?.topAlbums) ? data.topAlbums : (Array.isArray(data?.top_albums) ? data.top_albums : []));
-        setSingles(Array.isArray(data?.singles) ? data.singles : (Array.isArray(data?.singles_list) ? data.singles_list : []));
-      } catch (err) {
-        console.warn('Failed to fetch artist', err);
+        setTopSongs(Array.isArray((data as AnyRecord)?.topSongs) ? (data as AnyRecord).topSongs as AnyRecord[] : (Array.isArray((data as AnyRecord)?.top_songs) ? (data as AnyRecord).top_songs as AnyRecord[] : []));
+        setTopAlbums(Array.isArray((data as AnyRecord)?.topAlbums) ? (data as AnyRecord).topAlbums as AnyRecord[] : (Array.isArray((data as AnyRecord)?.top_albums) ? (data as AnyRecord).top_albums as AnyRecord[] : []));
+        setSingles(Array.isArray((data as AnyRecord)?.singles) ? (data as AnyRecord).singles as AnyRecord[] : (Array.isArray((data as AnyRecord)?.singles_list) ? (data as AnyRecord).singles_list as AnyRecord[] : []));
+      } catch {
+        console.warn('Failed to fetch artist');
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -65,17 +83,15 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
     return getBestImage(artistData.image || artistData.images || artistData.thumbnail || artistData.cover || artistData.img);
   };
 
-  const getHighQualityImage = (images: any) => getBestImage(images);
+  const getHighQualityImage = (images: unknown) => getBestImage(images);
 
   const mainContent = (
     <Box sx={{ pb: 14, minHeight: '100vh' }}>
-      <Box sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1200, backgroundColor: 'background.default', py: 0.5 }}>
-        <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton onClick={onBack} sx={{ color: 'text.primary' }}><ArrowBack /></IconButton>
-          <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>{artistName || decodeHtmlEntities(artistData?.name || '')}</Typography>
-        </Container>
-      </Box>
-      <Box sx={{ height: 56 }} />
+      <PageHeader
+        title={artistName || decodeHtmlEntities(artistData?.name || '')}
+        onBack={onBack}
+        position="fixed"
+      />
 
       <Container maxWidth="sm" sx={{ px: 2, pt: 2 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
@@ -104,13 +120,14 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
               {!loading && artistData?.dominantLanguage ? (
                 <Chip size="small" icon={<Language />} label={String(artistData.dominantLanguage).toUpperCase()} />
               ) : null}
-            </Box>
 
-            {/* Removed social links as requested */}
-
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-              {/* Replace inline intro with an active About chip */}
-              {/* About removed: use album/artist pages and actions instead */}
+              <FavouriteToggle
+                item={{ id: artistId, name: artistName || decodeHtmlEntities(artistData?.name || ''), image: getImageFromData() }}
+                type="artist"
+                initial={isFavouriteLocal}
+                onChange={(v: boolean) => setIsFavouriteLocal(Boolean(v))}
+                onShowSnackbar={onShowSnackbar}
+              />
             </Box>
           </Box>
         </Box>
@@ -136,10 +153,10 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
             </Box>
           ) : (
             <List>
-              {topSongs.slice(0, 12).map((song: any, idx: number) => {
-                const title = decodeHtmlEntities(song.name || song.title || 'Untitled');
-                const artist = joinArtistNames(song.artists?.primary ?? song.artists?.all ?? song.artists?.all ?? []);
-                const imageSrc = getHighQualityImage(song.image) || (song.album && getHighQualityImage(song.album.image)) || '';
+              {topSongs.slice(0, 12).map((song: AnyRecord, idx: number) => {
+                const title = decodeHtmlEntities((song.name as string) || (song.title as string) || 'Untitled');
+                const artist = joinArtistNames(((song as AnyRecord).artists as AnyRecord | undefined)?.primary ?? ((song as AnyRecord).artists as AnyRecord | undefined)?.all ?? []);
+                const imageSrc = getHighQualityImage((song as AnyRecord).image) || (((song as AnyRecord).album as AnyRecord | undefined) && getHighQualityImage(((song as AnyRecord).album as AnyRecord).image)) || '';
                 return (
                     <SongItem
                       key={song.id || song.songid || song.sid || title || idx}
@@ -167,7 +184,7 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
         <Box sx={{ mb: 3 }}>
           <Typography variant="h6" sx={{ mb: 1 }}>Top Albums</Typography>
           {loading ? (
-            <Box sx={{ display: 'flex', gap: 2, pb: 2, overflowX: 'auto' }}>
+            <HorizontalScroller gap={2} px={2}>
               {[...Array(6)].map((_, idx) => (
                 <Box key={idx} sx={{ minWidth: 140, maxWidth: 140 }}>
                   <Skeleton variant="rounded" width={140} height={140} sx={{ mb: 1 }} />
@@ -175,33 +192,21 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
                   <Skeleton variant="text" width="60%" />
                 </Box>
               ))}
-            </Box>
+            </HorizontalScroller>
           ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                gap: 2,
-                overflowX: 'auto',
-                pb: 2,
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-                '&::-webkit-scrollbar': {
-                  display: 'none',
-                },
-              }}
-            >
-              {topAlbums.map((album: any) => {
-                const albumTitle = decodeHtmlEntities(album.name || album.title || '');
-                const albumId = album.id || album.albumid || album.sid || album._id || albumTitle;
+            <HorizontalScroller gap={2} px={2}>
+              {topAlbums.map((album: AnyRecord) => {
+                const albumTitle = decodeHtmlEntities((album.name as string) || (album.title as string) || '');
+                const albumId = (album.id as string) || (album.albumid as string) || (album.sid as string) || (album._id as string) || albumTitle;
                 // Prefer high-quality images when available
                 let albumImage = '';
-                if (Array.isArray(album.image) && album.image.length > 0) {
-                  // try to pick the largest/url-like image
-                  albumImage = album.image.find((i: any) => i?.quality === '500x500')?.url || album.image[0]?.url || album.image.find((i: any) => i?.url)?.url || '';
+                if (Array.isArray((album.image as unknown)) && (album.image as unknown[]).length > 0) {
+                  const arr = album.image as AnyRecord[];
+                  albumImage = (arr.find((i) => (i?.quality as string) === '500x500')?.url as string) || (arr[0]?.url as string) || (arr.find((i) => (i?.url as string))?.url as string) || '';
                 } else {
-                  albumImage = album.image || album.thumbnail || '';
+                  albumImage = (album.image as string) || (album.thumbnail as string) || '';
                 }
-                const primaryArtist = album.artists?.primary?.[0]?.name || album.artists?.all?.[0]?.name || '';
+                const primaryArtist = ((album as AnyRecord).artists as AnyRecord | undefined)?.primary?.[0]?.name as string | undefined || ((album as AnyRecord).artists as AnyRecord | undefined)?.all?.[0]?.name as string | undefined || '';
                 return (
                   <Box
                     key={albumId}
@@ -275,7 +280,7 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
                   </Box>
                 );
               })}
-            </Box>
+            </HorizontalScroller>
           )}
         </Box>
 
@@ -316,25 +321,25 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
             </Box>
           ) : (
             <List>
-              {singles.slice(0, 12).map((item: any, idx: number) => {
+              {singles.slice(0, 12).map((item: AnyRecord, idx: number) => {
                 // singles are album-like objects; fetch songs and play first one
                 const title = decodeHtmlEntities(item.name || item.title || '');
                 const artist = joinArtistNames(item.artists?.primary ?? item.artists?.all ?? []);
                 const imageSrc = getHighQualityImage(item.image) || '';
                 const albumId = item.id || item.albumid || item.album_id;
                 
-                const handleSingleClick = async () => {
-                  if (!albumId || !onSongSelect) return;
-                  try {
-                    const albumData = await saavnApi.getAlbumById(albumId);
-                    const songs = albumData?.data?.songs || albumData?.songs || [];
-                    if (songs.length > 0) {
-                      onSongSelect(songs[0], songs);
+                  const handleSingleClick = async () => {
+                    if (!albumId || !onSongSelect) return;
+                    try {
+                      const albumData = await saavnApi.getAlbumById(albumId);
+                      const songs = (albumData as AnyRecord)?.data?.songs || (albumData as AnyRecord)?.songs || [];
+                      if (songs.length > 0) {
+                        onSongSelect(songs[0], songs as AnyRecord[]);
+                      }
+                    } catch {
+                      console.warn('Failed to load single');
                     }
-                  } catch (err) {
-                    console.warn('Failed to load single', err);
-                  }
-                };
+                  };
                 
                 return (
                   <SongItem
@@ -366,132 +371,80 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
     </Box>
   );
 
-  // Menu for per-song actions
-  const SongMenu: React.FC<{ anchorEl: HTMLElement | null; onClose: () => void; song: any | null; }> = ({ anchorEl, onClose, song }) => {
-    const handlePlayNow = async () => {
-      if (!song || !onSongSelect) return onClose();
-      
-      // Check if this is a single (has albumId)
-      if (song.albumId) {
-        try {
-          const albumData = await saavnApi.getAlbumById(song.albumId);
-          const songs = albumData?.data?.songs || albumData?.songs || [];
-          if (songs.length > 0) {
-            onSongSelect(songs[0], songs);
-          }
-        } catch (err) {
-          console.warn('Failed to load single', err);
-        }
-      } else {
-        onSongSelect(song, topSongs.concat(singles));
-      }
-      onClose();
-    };
-
-    const handleAddToQueue = async () => {
-      if (!song || !onAddToQueue) return onClose();
-      
-      // Check if this is a single (has albumId)
-      if (song.albumId) {
-        try {
-          const albumData = await saavnApi.getAlbumById(song.albumId);
-          const songs = albumData?.data?.songs || albumData?.songs || [];
-          if (songs.length > 0) {
-            onAddToQueue(songs[0]);
-          }
-        } catch (err) {
-          console.warn('Failed to load single', err);
-        }
-      } else {
-        onAddToQueue(song);
-      }
-      onClose();
-    };
-
-    const handlePlayNext = async () => {
-      if (!song || !onPlayNext) return onClose();
-      
-      // Check if this is a single (has albumId)
-      if (song.albumId) {
-        try {
-          const albumData = await saavnApi.getAlbumById(song.albumId);
-          const songs = albumData?.data?.songs || albumData?.songs || [];
-          if (songs.length > 0) {
-            onPlayNext(songs[0]);
-          }
-        } catch (err) {
-          console.warn('Failed to load single', err);
-        }
-      } else {
-        onPlayNext(song);
-      }
-      onClose();
-    };
-
-    // 'Go To Album' removed from Artist page context menu per request
-
-    const handleToggleFavourite = async () => {
-      if (!song) return onClose();
-      try {
-        const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
-        const exists = favourites.some((s: any) => s.id === song.id);
-        if (exists) {
-          const updated = favourites.filter((s: any) => s.id !== song.id);
-          await persistFavourites(FAVOURITE_SONGS_KEY, updated);
-          setIsFavouriteLocal(false);
+  // Use SongContextMenu for per-song actions
+  const SongMenu = (
+    <SongContextMenu
+      anchorEl={menuAnchor}
+      open={Boolean(menuAnchor)}
+      onClose={handleMenuClose}
+      onPlayNow={async () => {
+        const song = menuTarget;
+        if (!song || !onSongSelect) return;
+        if (song.albumId) {
+          try {
+            const albumData = await saavnApi.getAlbumById(song.albumId);
+            const songs = albumData?.data?.songs || albumData?.songs || [];
+            if (songs.length > 0) onSongSelect(songs[0], songs);
+          } catch (err) { console.warn('Failed to load single', err); }
         } else {
-          const newFavourite = {
-            id: song.id,
-            name: song.name || song.title,
-            artist: song.primaryArtists || song.artist || '',
-            albumArt: Array.isArray(song.image) && song.image[0] ? (song.image[0].url || song.image[0].link) : '',
-            addedAt: Date.now(),
-          };
-          await persistFavourites(FAVOURITE_SONGS_KEY, [...favourites, newFavourite]);
-          setIsFavouriteLocal(true);
+          onSongSelect(song, topSongs.concat(singles));
         }
-      } catch (err) {
-        console.warn('Unable to update favourites', err);
-      }
-      onClose();
-    };
-
-    return (
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={onClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <MenuItem onClick={handlePlayNow}>
-          <ListItemIcon>
-            <PlayArrow fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">Play Now</Typography>
-        </MenuItem>
-        <MenuItem onClick={handlePlayNext}>
-          <ListItemIcon>
-            <QueueMusic fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">Play Next</Typography>
-        </MenuItem>
-        <MenuItem onClick={handleAddToQueue}>
-          <ListItemIcon>
-            <PlaylistAdd fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">Add to Queue</Typography>
-        </MenuItem>
-        {/* Go To Album removed on Artist page */}
-        <MenuItem onClick={handleToggleFavourite}>
-          <ListItemIcon>
-            <Favorite fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">{isFavouriteLocal ? 'Remove from Favourites' : 'Add to Favourites'}</Typography>
-        </MenuItem>
-      </Menu>
-    );
-  };
+      }}
+      onPlayNext={async () => {
+        const song = menuTarget;
+        if (!song || !onPlayNext) return;
+        if (song.albumId) {
+          try {
+            const albumData = await saavnApi.getAlbumById(song.albumId);
+            const songs = albumData?.data?.songs || albumData?.songs || [];
+            if (songs.length > 0) onPlayNext(songs[0]);
+          } catch (err) { console.warn('Failed to load single', err); }
+        } else {
+          onPlayNext(song);
+        }
+      }}
+      onAddToQueue={async () => {
+        const song = menuTarget;
+        if (!song || !onAddToQueue) return;
+        if (song.albumId) {
+          try {
+            const albumData = await saavnApi.getAlbumById(song.albumId);
+            const songs = albumData?.data?.songs || albumData?.songs || [];
+            if (songs.length > 0) onAddToQueue(songs[0]);
+          } catch { console.warn('Failed to load single'); }
+        } else {
+          onAddToQueue(song);
+        }
+      }}
+      onAddToFavourites={async () => {
+        const song = menuTarget;
+        if (!song) return;
+        try {
+          const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
+          const exists = (favourites as AnyRecord[]).some((s) => (s['id'] as string) === ((song as AnyRecord)['id'] as string));
+          if (exists) {
+            const updated = (favourites as AnyRecord[]).filter((s) => (s['id'] as string) !== ((song as AnyRecord)['id'] as string));
+            await persistFavourites(FAVOURITE_SONGS_KEY, updated as unknown[]);
+            setIsFavouriteLocal(false);
+          } else {
+            const s = song as AnyRecord;
+            const newFavourite = {
+              id: s['id'],
+              name: s['name'] as string | undefined || s['title'] as string | undefined,
+              artist: (s['primaryArtists'] as string) || (s['artist'] as string) || '',
+              albumArt: Array.isArray(s['image'] as unknown) && (s['image'] as AnyRecord[])[0] ? ((s['image'] as AnyRecord[])[0].url as string || (s['image'] as AnyRecord[])[0].link as string) : '',
+              addedAt: Date.now(),
+            };
+            await persistFavourites(FAVOURITE_SONGS_KEY, [...(favourites as AnyRecord[]), newFavourite] as unknown[]);
+            setIsFavouriteLocal(true);
+          }
+        } catch {
+          console.warn('Unable to update favourites');
+        }
+      }}
+      isFavourite={isFavouriteLocal}
+    />
+  );
 
   // Render SongMenu and More dialog anchored to menuAnchor/menuTarget
   const handleMenuClose = () => { setMenuAnchor(null); setMenuTarget(null); };
@@ -499,7 +452,7 @@ const ArtistPage: React.FC<ArtistPageProps> = ({ artistId, artistName, artistIma
   return (
     <>
       {mainContent}
-      <SongMenu anchorEl={menuAnchor} onClose={handleMenuClose} song={menuTarget} />
+      {SongMenu}
     </>
   );
 };

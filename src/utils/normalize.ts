@@ -5,7 +5,7 @@ export const decodeHtmlEntities = (text: string): string => {
     const textarea = document.createElement('textarea');
     textarea.innerHTML = text;
     return textarea.value;
-  } catch (err) {
+  } catch {
     return text;
   }
 };
@@ -73,29 +73,44 @@ export const formatCountShort = (n?: number | string): string => {
 
 // Returns a best-quality image URL from various shapes used by the API.
 // Accepts: string URL, array of {quality,url}, object with url, or nested shapes.
-export const getBestImage = (imgField: any): string => {
+export const getBestImage = (imgField: unknown): string => {
   if (!imgField) return '';
-  // If it's already a string URL
   if (typeof imgField === 'string') return imgField;
   // If it's an array of images
-  if (Array.isArray(imgField) && imgField.length > 0) {
+  if (Array.isArray(imgField) && (imgField as unknown[]).length > 0) {
+    const arr = imgField as unknown[];
     const prefer = ['500x500', '320x320', '150x150', '50x50'];
     for (const q of prefer) {
-      const found = imgField.find((it: any) => (it?.quality === q) || (it?.url && it.url.includes(q)));
-      if (found) return found.url || found.link || '';
+      const found = arr.find((it) => {
+        const r = it as Record<string, unknown> | null;
+        if (!r) return false;
+        const quality = r['quality'] as string | undefined;
+        const url = r['url'] as string | undefined;
+        const link = r['link'] as string | undefined;
+        return quality === q || (url && url.includes(q)) || (link && link.includes(q));
+      });
+      if (found) {
+        const f = found as Record<string, unknown>;
+        return (f['url'] as string) || (f['link'] as string) || '';
+      }
     }
-    // fallback to first available url
-    const first = imgField.find((it: any) => it?.url) || imgField[0];
-    return first?.url || first?.link || '';
+    const first = arr.find((it) => (it as Record<string, unknown>)['url']);
+    if (first) {
+      const f = first as Record<string, unknown>;
+      return (f['url'] as string) || (f['link'] as string) || '';
+    }
+    const fallback = arr[0] as Record<string, unknown> | string | undefined;
+    if (typeof fallback === 'string') return fallback;
+    if (fallback) return (fallback['url'] as string) || (fallback['link'] as string) || '';
+    return '';
   }
-  // If it's an object with url
-  if (typeof imgField === 'object') {
-    if (imgField.url) return imgField.url;
-    // Some shapes might use 'link' or nested arrays
-    if (imgField.link) return imgField.link;
-    // Try nested image arrays
+  // If it's an object with url or nested images
+  if (typeof imgField === 'object' && imgField !== null) {
+    const obj = imgField as Record<string, unknown>;
+    if (typeof obj['url'] === 'string') return obj['url'] as string;
+    if (typeof obj['link'] === 'string') return obj['link'] as string;
     for (const key of ['images', 'image', 'thumbnail', 'cover']) {
-      if (imgField[key]) return getBestImage(imgField[key]);
+      if (obj[key]) return getBestImage(obj[key]);
     }
   }
   return '';

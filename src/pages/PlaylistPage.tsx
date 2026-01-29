@@ -4,16 +4,15 @@ import {
   Typography,
   Avatar,
   IconButton,
-  List,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  Container,
   Skeleton,
 } from '@mui/material';
-import { ArrowBack, MusicNote, PlayArrow, FavoriteBorder, Favorite, QueueMusic, PlaylistAdd, Shuffle, MoreVertical } from '../icons';
+import TrackList from '../components/TrackList';
+import { MusicNote, PlayArrow, FavoriteBorder, Favorite, Shuffle, MoreVertical } from '../icons';
+import PageHeader from '../components/PageHeader';
 import SongItem from '../components/SongItem';
-import SongItemSkeleton from '../components/SongItemSkeleton';
+import SongContextMenu from '../components/SongContextMenu';
+// SongItemSkeleton intentionally unused here
+import FavouriteToggle from '../components/FavouriteToggle';
 import { saavnApi } from '../services/saavnApi';
   
 import {
@@ -25,55 +24,54 @@ import {
   readFavourites,
 } from '../services/storage';
 import { decodeHtmlEntities, getBestImage } from '../utils/normalize';
+import type { Theme } from '@mui/material/styles';
 
-const extractSongsFromArtistResponse = (response: any): any[] => {
+type AnyRecord = Record<string, unknown>;
+
+const extractSongsFromArtistResponse = (response: unknown): AnyRecord[] => {
   if (!response) return [];
+  const r = response as AnyRecord;
   const candidates = [
-    response.data?.results,
-    response.results,
-    response.data?.songs,
-    response.songs,
-    response.data?.tracks,
-    response.tracks,
+    (r.data as AnyRecord)?.results,
+    (r as AnyRecord).results,
+    (r.data as AnyRecord)?.songs,
+    (r as AnyRecord).songs,
+    (r.data as AnyRecord)?.tracks,
+    (r as AnyRecord).tracks,
   ];
   for (const candidate of candidates) {
-    if (Array.isArray(candidate) && candidate.length > 0) {
-      return candidate;
-    }
+    if (Array.isArray(candidate) && candidate.length > 0) return candidate as AnyRecord[];
   }
-  if (Array.isArray(response.data)) {
-    return response.data;
-  }
+  if (Array.isArray((r.data as unknown))) return (r.data as unknown) as AnyRecord[];
   return [];
 };
 
-const getArtistNames = (song: any): string => {
+const getArtistNames = (song: AnyRecord | undefined): string => {
   if (!song) return 'Unknown Artist';
-  if (song.artists) {
-    if (typeof song.artists === 'string') return song.artists;
-    if (Array.isArray(song.artists)) {
-      return song.artists.map((a: any) => a.name || a).join(', ');
-    }
-    if (song.artists.primary && Array.isArray(song.artists.primary)) {
-      return song.artists.primary.map((a: any) => a.name || a).join(', ');
+  const artists = song.artists;
+  if (artists) {
+    if (typeof artists === 'string') return artists;
+    if (Array.isArray(artists)) return (artists as AnyRecord[]).map(a => (a as AnyRecord).name as string || (a as string) || '').filter(Boolean).join(', ');
+    if ((artists as AnyRecord).primary && Array.isArray((artists as AnyRecord).primary)) {
+      return ((artists as AnyRecord).primary as AnyRecord[]).map(a => (a as AnyRecord).name as string || (a as string) || '').filter(Boolean).join(', ');
     }
   }
-  if (song.artist) return song.artist;
-  if (song.primaryArtists) return song.primaryArtists;
+  if (song.artist) return song.artist as string;
+  if (song.primaryArtists) return song.primaryArtists as string;
   return 'Unknown Artist';
 };
 
-const getHighQualityImage = (imageUrl: any): string => getBestImage(imageUrl);
+const getHighQualityImage = (imageUrl: unknown): string => getBestImage(imageUrl);
 
 interface PlaylistPageProps {
   playlistId: string;
   playlistName: string;
   playlistImage: string;
   onBack: () => void;
-  onSongSelect: (song: any, contextSongs?: any[]) => void;
+  onSongSelect: (song: AnyRecord, contextSongs?: AnyRecord[]) => void;
   type?: 'playlist' | 'album' | 'artist';
-  onAddToQueue?: (song: any) => void;
-  onPlayNext?: (song: any) => void;
+  onAddToQueue?: (song: AnyRecord) => void;
+  onPlayNext?: (song: AnyRecord) => void;
   onShowSnackbar?: (message: string) => void;
 }
 
@@ -88,12 +86,12 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
   onPlayNext,
   onShowSnackbar,
 }) => {
-  const [songs, setSongs] = useState<any[]>([]);
+  const [songs, setSongs] = useState<AnyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isFavourite, setIsFavourite] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedSong, setSelectedSong] = useState<any>(null);
+  const [selectedSong, setSelectedSong] = useState<AnyRecord | null>(null);
   const fetchAbortControllerRef = useRef<AbortController | null>(null);
   const lastFetchKeyRef = useRef<string>('');
 
@@ -103,17 +101,17 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
     const loadFavourites = async () => {
       try {
         const favourites = await readFavourites(storageKey);
-        const exists = favourites.some((item: any) => item.id === playlistId);
+        const exists = (favourites as unknown[]).some((item: AnyRecord) => (item['id'] as string) === playlistId);
         setIsFavourite(exists);
-      } catch (error) {
-        console.warn('Unable to read favourites for playlist/artist', error);
+      } catch {
+        console.warn('Unable to read favourites for playlist/artist');
       }
     };
 
     loadFavourites();
   }, [playlistId, type]);
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, song: any) => {
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, song: AnyRecord) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
     setSelectedSong(song);
@@ -149,8 +147,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
     if (selectedSong) {
       try {
         const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
-        const exists = favourites.some((song: any) => song.id === selectedSong.id);
-
+          const exists = (favourites as unknown[]).some((song: AnyRecord) => (song['id'] as string) === (selectedSong as AnyRecord)['id'] as string);
         if (!exists) {
           const newFavourite = {
             id: selectedSong.id,
@@ -161,51 +158,15 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
           };
           const updated = [...favourites, newFavourite];
           await persistFavourites(FAVOURITE_SONGS_KEY, updated);
-          if (onShowSnackbar) {
-            onShowSnackbar('Added to favourites ❤️');
-          }
         }
-      } catch (error) {
-        console.warn('Unable to update favourite songs', error);
+      } catch {
+        console.warn('Unable to update favourite songs');
       }
     }
     handleMenuClose();
   };
 
-  const toggleFavourite = async () => {
-    const storageKey = type === 'album' ? FAVOURITE_ALBUMS_KEY : type === 'artist' ? FAVOURITE_ARTISTS_KEY : FAVOURITE_PLAYLISTS_KEY;
-    try {
-      const favourites = await readFavourites(storageKey);
-
-      if (isFavourite) {
-        const updated = favourites.filter((item: any) => item.id !== playlistId);
-        setIsFavourite(false);
-        try {
-          await persistFavourites(storageKey, updated);
-        } catch (error) {
-          console.warn('Unable to persist favorite', error);
-        }
-      } else {
-        const newFavourite = {
-          id: playlistId,
-          name: playlistName,
-          image: playlistImage,
-          artist: type === 'album' ? 'Various Artists' : type === 'artist' ? 'Artist' : '',
-          description: type === 'playlist' ? playlistName : '',
-          addedAt: Date.now(),
-        };
-        const updated = [...favourites, newFavourite];
-        setIsFavourite(true);
-        try {
-          await persistFavourites(storageKey, updated);
-        } catch (error) {
-          console.warn('Unable to persist favorite', error);
-        }
-      }
-    } catch (error) {
-      console.warn('Unable to read favourites for playlist/artist', error);
-    }
-  };
+  // Favourite toggle handled via `FavouriteToggle` component; local toggle removed.
 
   const handleShufflePlay = () => {
     if (!songs || songs.length === 0) return;
@@ -250,7 +211,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
         setLoading(true);
         setError(false);
 
-        let response: any;
+        let response: unknown;
         if (type === 'album') {
           response = await saavnApi.getAlbumById(playlistId);
         } else if (type === 'artist') {
@@ -270,7 +231,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
         } else {
           setError(true);
         }
-      } catch (err) {
+      } catch {
         if (isMounted && !abortController.signal.aborted) {
           setError(true);
         }
@@ -290,41 +251,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
   }, [playlistId, type]);
   return (
     <Box sx={{ pb: 14, px: 2, pt: 2 }}>
-      {/* Fixed header with back button and playlist name (aligned to app container) */}
-      <Box
-        sx={(theme) => ({
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: theme.zIndex.appBar,
-          width: '100%',
-          backgroundColor: theme.palette.background.default,
-          boxShadow: `0 1px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)'}`,
-          mb: 1,
-          py: 0.325,
-        })}
-      >
-        <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', gap: 1, px: { xs: 1, sm: 1.25 } }}>
-          <IconButton
-            onClick={onBack}
-            sx={{
-              color: 'text.primary',
-              '&:hover': {
-                bgcolor: 'action.hover',
-              },
-            }}
-          >
-            <ArrowBack />
-          </IconButton>
-          <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, flex: 1, pl: 0.5 }} noWrap>
-            {decodeHtmlEntities(playlistName)}
-          </Typography>
-        </Container>
-      </Box>
-
-      {/* Spacer to offset fixed header height */}
-      <Box sx={{ height: { xs: 56, sm: 64 }, width: '100%' }} />
+      <PageHeader title={decodeHtmlEntities(playlistName)} onBack={onBack} position="fixed" />
 
       {/* Playlist Header */}
       <Box
@@ -374,7 +301,7 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
               {/* shared lighter button style for shuffle and favourite */}
               <IconButton
                 onClick={handleShufflePlay}
-                sx={(theme) => ({
+                sx={(theme: Theme) => ({
                   bgcolor: theme.palette.mode === 'dark' ? 'action.selected' : 'action.hover',
                   color: 'text.secondary',
                   width: 36,
@@ -409,21 +336,28 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
               </IconButton>
             </>
           )}
-          <IconButton
-            onClick={toggleFavourite}
-            sx={(theme) => ({
-              bgcolor: isFavourite ? 'rgba(255, 82, 82, 0.08)' : (theme.palette.mode === 'dark' ? 'action.selected' : 'action.hover'),
-              color: isFavourite ? 'error.main' : 'text.secondary',
+          <FavouriteToggle
+            item={{ id: playlistId, name: playlistName, image: playlistImage }}
+            type={type === 'album' ? 'album' : type === 'artist' ? 'artist' : 'playlist'}
+            initial={isFavourite}
+            onChange={(v: boolean) => setIsFavourite(Boolean(v))}
+            onShowSnackbar={onShowSnackbar}
+            icon={{
+              fav: <Favorite fontSize="small" sx={{ color: 'error.main' }} />,
+              notFav: <FavoriteBorder fontSize="small" />,
+            }}
+            iconButtonSx={(theme: Theme) => ({
+              bgcolor: theme.palette.mode === 'dark' ? 'action.selected' : 'action.hover',
+              color: 'text.secondary',
               width: 36,
               height: 36,
               borderRadius: '50%',
-              '&:hover': {
-                bgcolor: isFavourite ? 'rgba(255, 82, 82, 0.16)' : theme.palette.action.selected,
-              },
             })}
-          >
-            {isFavourite ? <Favorite fontSize="small" sx={{ color: 'error.main' }} /> : <FavoriteBorder fontSize="small" />}
-          </IconButton>
+            activeIconButtonSx={{
+              bgcolor: 'rgba(255, 82, 82, 0.08)',
+              '&:hover': { bgcolor: 'rgba(255, 82, 82, 0.16)' },
+            }}
+          />
         </Box>
       </Box>
 
@@ -452,78 +386,40 @@ const PlaylistPage: React.FC<PlaylistPageProps> = ({
       )}
 
       {/* Songs List */}
-      {loading && (
-        <Box sx={{ px: 1 }}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SongItemSkeleton key={i} />
-          ))}
-        </Box>
-      )}
+      <TrackList
+        items={songs}
+        loading={loading}
+        skeletonCount={6}
+        keyExtractor={(s: AnyRecord, i: number) => (s.id as string) || i}
+        renderItem={(song: AnyRecord) => (
+          <SongItem
+            key={song.id as string}
+            title={decodeHtmlEntities(song.name as string)}
+            artist={decodeHtmlEntities(getArtistNames(song))}
+            imageSrc={getHighQualityImage(song.image)}
+            onClick={() => onSongSelect(song, songs)}
+            rightContent={
+              <IconButton
+                edge="end"
+                onClick={(e) => handleMenuOpen(e, song)}
+                sx={{ color: 'text.secondary' }}
+              >
+                <MoreVertical />
+              </IconButton>
+            }
+          />
+        )}
+      />
 
-      {!loading && !error && songs.length > 0 && (
-        <Box sx={{ px: 1 }}>
-          <List sx={{ bgcolor: 'transparent', p: 0 }}>
-            {songs.map((song, index) => (
-              <SongItem
-                key={song.id || index}
-                title={decodeHtmlEntities(song.name)}
-                artist={decodeHtmlEntities(getArtistNames(song))}
-                imageSrc={getHighQualityImage(song.image)}
-                onClick={() => onSongSelect(song, songs)}
-                rightContent={
-                  <IconButton
-                    edge="end"
-                    onClick={(e) => handleMenuOpen(e, song)}
-                    sx={{ color: 'text.secondary' }}
-                  >
-                    <MoreVertical />
-                  </IconButton>
-                }
-              />
-            ))}
-          </List>
-
-          {/* Context Menu */}
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-            anchorOrigin={{
-              vertical: 'bottom',
-              horizontal: 'right',
-            }}
-            transformOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
-          >
-            <MenuItem onClick={handlePlayNow}>
-              <ListItemIcon>
-                <PlayArrow fontSize="small" />
-              </ListItemIcon>
-              <Typography variant="body2">Play Now</Typography>
-            </MenuItem>
-            <MenuItem onClick={handlePlayNext}>
-              <ListItemIcon>
-                <QueueMusic fontSize="small" />
-              </ListItemIcon>
-              <Typography variant="body2">Play Next</Typography>
-            </MenuItem>
-            <MenuItem onClick={handleAddToQueue}>
-              <ListItemIcon>
-                <PlaylistAdd fontSize="small" />
-              </ListItemIcon>
-              <Typography variant="body2">Add to Queue</Typography>
-            </MenuItem>
-            <MenuItem onClick={handleAddToFavourites}>
-              <ListItemIcon>
-                <Favorite fontSize="small" />
-              </ListItemIcon>
-              <Typography variant="body2">Add to Favourites</Typography>
-            </MenuItem>
-          </Menu>
-        </Box>
-      )}
+      <SongContextMenu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        onPlayNow={handlePlayNow}
+        onPlayNext={handlePlayNext}
+        onAddToQueue={handleAddToQueue}
+        onAddToFavourites={handleAddToFavourites}
+      />
 
       {/* Empty State */}
       {!loading && !error && songs.length === 0 && (

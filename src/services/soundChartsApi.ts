@@ -1,8 +1,12 @@
 // SoundCharts API Service for Top Songs in India
 
+type AnyRecord = Record<string, unknown>;
+
 const APP_ID = 'TBOY-API_3DE8C120';
 const API_KEY = 'c228e42eab8a5997';
 const BASE_URL = 'https://customer.api.soundcharts.com/api/v2.14';
+
+import { withInflight, fetchJson } from '../utils/fetch';
 
 export interface SoundChartsSong {
   uuid: string;
@@ -44,38 +48,22 @@ export const soundChartsApi = {
   getTopSongs: async (offset: number = 0, limit: number = 10): Promise<SoundChartsResponse> => {
     try {
       // Use a simple global in-flight map to dedupe concurrent SoundCharts requests
-      const globalAny: any = globalThis as any;
-      if (!globalAny.__soundcharts_inflight) globalAny.__soundcharts_inflight = new Map<string, Promise<any>>();
-      const inflight: Map<string, Promise<any>> = globalAny.__soundcharts_inflight;
+      const globalAny = globalThis as unknown as AnyRecord;
+      if (!globalAny.__soundcharts_inflight) globalAny.__soundcharts_inflight = new Map<string, Promise<unknown>>();
+      const inflight: Map<string, Promise<unknown>> = globalAny.__soundcharts_inflight as Map<string, Promise<unknown>>;
       const key = `${offset}:${limit}`;
-      if (inflight.has(key)) return await inflight.get(key)!;
 
-      const promise = (async () => {
-        const response = await fetch(
-          `${BASE_URL}/chart/song/top-songs-29/ranking/latest?offset=${offset}&limit=${limit}`,
-          {
-            headers: {
-              'x-app-id': APP_ID,
-              'x-api-key': API_KEY,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`SoundCharts API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        return data;
-      })();
-
-      inflight.set(key, promise);
-      try {
-        const res = await promise;
-        return res;
-      } finally {
-        inflight.delete(key);
-      }
+      return await withInflight(inflight, key, async () => {
+        const url = `${BASE_URL}/chart/song/top-songs-29/ranking/latest?offset=${offset}&limit=${limit}`;
+        const data = await fetchJson(url, {
+          errorMessage: 'Failed to fetch SoundCharts top songs',
+          headers: { 'x-app-id': APP_ID, 'x-api-key': API_KEY },
+          timeoutMs: 8000,
+          retries: 1,
+          retryDelayMs: 500,
+        });
+        return data as SoundChartsResponse;
+      });
     } catch (error) {
       console.error('Error fetching top songs from SoundCharts:', error);
       throw error;

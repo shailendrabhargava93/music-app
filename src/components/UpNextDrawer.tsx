@@ -12,6 +12,8 @@ import { Song } from '../types/api';
 import SongItem from './SongItem';
 import { decodeHtmlEntities, getBestImage } from '../utils/normalize';
 
+type AnyRecord = Record<string, unknown>;
+
 interface UpNextDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -99,13 +101,13 @@ const UpNextDrawer: React.FC<UpNextDrawerProps> = ({
     dragIndexRef.current = index;
     try {
       e.dataTransfer.setData('text/plain', String(index));
-    } catch (err) {
+    } catch {
       // ignore
     }
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragOver = (_index: number) => (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
@@ -137,7 +139,7 @@ const UpNextDrawer: React.FC<UpNextDrawerProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     startDragTouch(e.clientY);
   };
-  const getHighQualityImage = (images: any) => getBestImage(images);
+  const getHighQualityImage = (images: unknown) => getBestImage(images);
 
   // use shared `decodeHtmlEntities` from utils
 
@@ -222,22 +224,24 @@ const UpNextDrawer: React.FC<UpNextDrawerProps> = ({
             {items.filter((song) => song && song.id).map((song, index) => {
               const isPlaying = !!currentSongId && String(song.id) === String(currentSongId);
               return (
-                <Box
+                  <Box
                   key={song.id || index}
                   draggable
                   onDragStart={handleDragStart(index)}
-                  onDragOver={handleDragOver(index)}
+                  onDragOver={handleDragOver}
                   onDrop={handleDrop(index)}
                   sx={{ cursor: 'grab' }}
                 >
                   <SongItem
                     title={decodeHtmlEntities(song.name || 'Unknown Song')}
                     artist={(() => {
-                      const songAny = song as any;
-                      if (songAny.artists?.primary && Array.isArray(songAny.artists.primary)) {
-                        return songAny.artists.primary.map((artist: any) => artist.name).join(', ');
+                      const s = song as AnyRecord;
+                      const artistsObj = s['artists'] as AnyRecord | undefined;
+                      const primary = artistsObj && Array.isArray(artistsObj['primary']) ? artistsObj['primary'] as AnyRecord[] : undefined;
+                      if (primary && primary.length > 0) {
+                        return primary.map(a => String((a && (a as AnyRecord)['name']) || '')).filter(Boolean).join(', ');
                       }
-                      return song.primaryArtists || 'Unknown Artist';
+                      return (s['primaryArtists'] as string) || (song.primaryArtists as string) || 'Unknown Artist';
                     })()}
                     imageSrc={song.image ? getHighQualityImage(song.image) : ''}
                     onClick={() => handleSongClick(song)}

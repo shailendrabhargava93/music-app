@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // Single, authoritative icon module used throughout the app.
 // All icons are exported from MUI icons-material.
 
@@ -43,6 +44,7 @@ export { default as ChevronRight } from '@mui/icons-material/ChevronRight';
 export { default as DragIndicator } from '@mui/icons-material/DragIndicator';
 export { default as TrendingUp } from '@mui/icons-material/TrendingUp';
 export { default as PeopleAlt } from '@mui/icons-material/PeopleAlt';
+export { default as Launch } from '@mui/icons-material/Launch';
 
 // MUI equivalents for previously lucide icons
 export { default as X } from '@mui/icons-material/Close';

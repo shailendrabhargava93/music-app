@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Avatar, Typography, IconButton, Paper, CircularProgress, useTheme } from '@mui/material';
 import { PlayArrow, Pause, Favorite, FavoriteBorder } from '../icons';
+import FavouriteToggle from './FavouriteToggle';
 
 interface MusicPlayerProps {
   songTitle?: string;
   artist?: string;
   albumArt?: string;
+  songId?: string;
   isPlaying?: boolean;
   isLoading?: boolean;
   progress?: number;
@@ -15,13 +17,15 @@ interface MusicPlayerProps {
   onNextSong?: () => void;
   onPreviousSong?: () => void;
   isFavorite?: boolean;
-  onToggleFavorite?: () => void;
+  onToggleFavorite?: (isFav?: boolean) => void;
+  onShowSnackbar?: (msg: string) => void;
 }
 
 const MusicPlayer: React.FC<MusicPlayerProps> = ({
   songTitle = 'Freefall (feat. Oliver Tree)',
   artist = 'Whethan',
   albumArt,
+  songId,
   isPlaying = false,
   isLoading = false,
   progress = 0,
@@ -29,7 +33,8 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
   onTogglePlay,
   onOpenFullPlayer,
   isFavorite = false,
-  onToggleFavorite
+  onToggleFavorite,
+  onShowSnackbar,
 }) => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
@@ -177,23 +182,14 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
             </Box>
           ) : (
             <>
-              <IconButton 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onToggleFavorite) onToggleFavorite();
-                }}
-                sx={{ 
-                  color: textColor,
-                  '&:hover': { 
-                    bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
-                  },
-                  width: 40,
-                  height: 40,
-                }} 
-                aria-label="toggle favorite"
-              >
-                {isFavorite ? <Favorite /> : <FavoriteBorder />}
-              </IconButton>
+                  <FavouriteToggle
+                    item={{ id: songId, name: songTitle, image: albumArt }}
+                    initial={isFavorite}
+                    onChange={(v: boolean) => { if (onToggleFavorite) onToggleFavorite(v); }}
+                    onShowSnackbar={onShowSnackbar}
+                    icon={{ fav: <Favorite />, notFav: <FavoriteBorder /> }}
+                    iconButtonSx={{ width: 40, height: 40 }}
+                  />
               <IconButton 
                 onClick={togglePlay} 
                 sx={{ 

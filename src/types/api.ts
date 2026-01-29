@@ -1,5 +1,7 @@
 // Saavn API Types
 
+export type AnyRecord = Record<string, unknown>;
+
 export interface Song {
   id: string;
   name: string;
@@ -70,7 +72,7 @@ export interface SearchResponse {
       position: number;
     };
     albums: {
-      results: any[];
+      results: AnyRecord[];
       position: number;
     };
     playlists: {
@@ -78,7 +80,7 @@ export interface SearchResponse {
       position: number;
     };
     artists: {
-      results: any[];
+      results: AnyRecord[];
       position: number;
     };
   };
