@@ -1,365 +1,218 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Typography, CircularProgress, IconButton, Skeleton, Menu, MenuItem, ListItemIcon, Container } from '@mui/material';
-import { ArrowLeft, MoreVertical, Play, Music, PlusSquare, Heart } from '../icons';
+import React from 'react';
+import { Box, Typography } from '@mui/material';
+import PageHeader from '../components/PageHeader';
+import TrackList from '../components/TrackList';
+import SongItem from '../components/SongItem';
 import { Song } from '../types/api';
+import { getBestImage, decodeHtmlEntities } from '../utils/normalize';
+import SongContextMenu from '../components/SongContextMenu';
+import { IconButton } from '@mui/material';
+import { MoreVertical } from '../icons';
+import { readFavourites, persistFavourites, FAVOURITE_SONGS_KEY } from '../services/storage';
 import { SoundChartsItem } from '../services/soundChartsApi';
-import { FAVOURITE_SONGS_KEY, persistFavourites, readFavourites } from '../services/storage';
+
+interface ChartSongWithSaavn extends SoundChartsItem {
+  saavnData?: Song | null;
+  isSearching?: boolean;
+}
 
 interface AllSongsPageProps {
-  onSongSelect: (song: Song) => void;
-  chartSongs: ChartSongWithSaavn[];
-  onBack: () => void;
+  onBack?: () => void;
+  chartSongs?: ChartSongWithSaavn[];
+  onSongSelect?: (song: Song, contextSongs?: Song[]) => void;
   onAddToQueue?: (song: Song) => void;
   onPlayNext?: (song: Song) => void;
 }
 
-interface ChartSongWithSaavn extends SoundChartsItem {
-  saavnData?: Song;
-  isSearching?: boolean;
-}
+const AllSongsPage: React.FC<AllSongsPageProps> = ({ onBack, chartSongs = [], onSongSelect, onAddToQueue, onPlayNext }) => {
+  const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
+  const [menuItem, setMenuItem] = React.useState<ChartSongWithSaavn | null>(null);
 
-const AllSongsPage: React.FC<AllSongsPageProps> = ({ onSongSelect, chartSongs, onBack, onAddToQueue, onPlayNext }) => {
-  const [displayedSongs, setDisplayedSongs] = useState<ChartSongWithSaavn[]>([]);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedSong, setSelectedSong] = useState<ChartSongWithSaavn | null>(null);
-  const [favouriteSongs, setFavouriteSongs] = useState<string[]>([]);
+  const handleSongClick = (songItem: ChartSongWithSaavn) => {
+    const song = songItem.saavnData || (songItem as any).song || null;
+    if (!song) return;
+    if (onSongSelect && songItem.saavnData) {
+      onSongSelect(songItem.saavnData, chartSongs.slice(0, 100).map(s => s.saavnData!).filter(Boolean) as Song[]);
+    } else if (onSongSelect) {
+      const scSong = (songItem as any).song as any;
+      const fallback: Song = {
+        id: scSong?.uuid || String(songItem.position),
+        name: scSong?.name || 'Unknown',
+        album: { id: '', name: '', url: '' },
+        year: '',
+        releaseDate: '',
+        duration: 0,
+        label: '',
+        primaryArtists: scSong?.creditName || '',
+        primaryArtistsId: '',
+        featuredArtists: '',
+        featuredArtistsId: '',
+        explicitContent: 0,
+        playCount: 0,
+        language: '',
+        hasLyrics: false,
+        url: '',
+        copyright: '',
+        image: scSong?.imageUrl ? [{ quality: 'default', link: scSong.imageUrl }] : [],
+        downloadUrl: [],
+      };
+      onSongSelect(fallback, []);
+    }
+  };
 
-  // Scroll to top when component mounts and load all songs
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    setDisplayedSongs(chartSongs);
-  }, [chartSongs]);
+  const openMenu = (ev: React.MouseEvent<HTMLElement>, item: ChartSongWithSaavn) => {
+    ev.stopPropagation();
+    setMenuAnchor(ev.currentTarget as HTMLElement);
+    setMenuItem(item);
+    // Check if this item is already a favourite
+    (async () => {
+      try {
+        const favs = await readFavourites(FAVOURITE_SONGS_KEY);
+        const id = item.saavnData?.id || (item as any).song?.uuid || String(item.position);
+        const exists = (favs as any[]).some(f => String(f.id) === String(id));
+        setIsMenuItemFavourite(Boolean(exists));
+      } catch {
+        setIsMenuItemFavourite(false);
+      }
+    })();
+  };
 
-  // Load favourite songs
-  useEffect(() => {
-    const loadFavouriteIds = async () => {
-      const saved = await readFavourites(FAVOURITE_SONGS_KEY);
-      setFavouriteSongs(saved.map((song: any) => song.id));
+  const closeMenu = () => {
+    setMenuAnchor(null);
+    setMenuItem(null);
+  };
+
+  const getSongForAction = (it: ChartSongWithSaavn | null): Song | null => {
+    if (!it) return null;
+    if (it.saavnData) return it.saavnData;
+    const sc = (it as any).song as any;
+    return {
+      id: sc?.uuid || String(it.position),
+      name: sc?.name || 'Unknown',
+      album: { id: '', name: '', url: '' },
+      year: '',
+      releaseDate: '',
+      duration: 0,
+      label: '',
+      primaryArtists: sc?.creditName || '',
+      primaryArtistsId: '',
+      featuredArtists: '',
+      featuredArtistsId: '',
+      explicitContent: 0,
+      playCount: 0,
+      language: '',
+      hasLyrics: false,
+      url: '',
+      copyright: '',
+      image: sc?.imageUrl ? [{ quality: 'default', link: sc.imageUrl }] : [],
+      downloadUrl: [],
     };
-
-    loadFavouriteIds();
-  }, []);
-
-  const handleSongClick = (song: ChartSongWithSaavn) => {
-    if (song.saavnData) {
-      onSongSelect(song.saavnData);
-    }
   };
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, song: ChartSongWithSaavn) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
-    setSelectedSong(song);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedSong(null);
-  };
-
-  const handlePlayNext = () => {
-    if (selectedSong?.saavnData && onPlayNext) {
-      onPlayNext(selectedSong.saavnData);
-    }
-    handleMenuClose();
-  };
-
-  const handleAddToQueue = () => {
-    if (selectedSong?.saavnData && onAddToQueue) {
-      onAddToQueue(selectedSong.saavnData);
-    }
-    handleMenuClose();
-  };
+  const [isMenuItemFavourite, setIsMenuItemFavourite] = React.useState(false);
 
   const handleAddToFavourites = async () => {
-    if (!selectedSong?.saavnData) return;
-
-    const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
-    const isFavourite = favourites.some((song: any) => song.id === selectedSong.saavnData!.id);
-
-    if (isFavourite) {
-      const updated = favourites.filter((song: any) => song.id !== selectedSong.saavnData!.id);
-      setFavouriteSongs(prev => prev.filter(id => id !== selectedSong.saavnData!.id));
-      try {
+    const s = getSongForAction(menuItem);
+    if (!s) return;
+    try {
+      const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
+      const exists = (favourites as any[]).some(f => String(f.id) === String(s.id));
+      if (exists) {
+        const updated = (favourites as any[]).filter(f => String(f.id) !== String(s.id));
         await persistFavourites(FAVOURITE_SONGS_KEY, updated);
-      } catch (error) {
-        console.warn('Unable to persist favourite songs', error);
-      }
-    } else {
-      const newFavourite = {
-        id: selectedSong.saavnData.id,
-        name: selectedSong.saavnData.name,
-        artist: selectedSong.saavnData.primaryArtists,
-        albumArt: selectedSong.saavnData.image && selectedSong.saavnData.image.length > 0
-          ? selectedSong.saavnData.image[0].link || ''
-          : '',
-        addedAt: Date.now(),
-      };
-      const updated = [...favourites, newFavourite];
-      setFavouriteSongs(prev => [...prev, selectedSong.saavnData!.id]);
-      try {
+        setIsMenuItemFavourite(false);
+      } else {
+        const newFavourite = {
+          id: s.id,
+          name: s.name,
+          artist: s.primaryArtists,
+          albumArt: Array.isArray(s.image) && s.image.length > 0 ? (s.image[0] as any).link || '' : '',
+          addedAt: Date.now(),
+        };
+        const updated = [...(favourites as any[]), newFavourite];
         await persistFavourites(FAVOURITE_SONGS_KEY, updated);
-      } catch (error) {
-        console.warn('Unable to persist favourite songs', error);
+        setIsMenuItemFavourite(true);
       }
+    } catch (err) {
+      console.warn('Failed to update favourites', err);
+    } finally {
+      closeMenu();
     }
-
-    handleMenuClose();
-  };
-
-  const getImageUrl = (imageArray: any[]): string => {
-    if (!Array.isArray(imageArray) || imageArray.length === 0) {
-      return '';
-    }
-
-    const firstImg = imageArray[0];
-    return firstImg?.url || firstImg?.link || '';
   };
 
   return (
-    <Box 
-      sx={{ 
-        pb: 10, 
-        minHeight: '100vh',
-        pt: 0,
-      }}
-    >
-      {/* Sticky header with back button */}
-      <Box
-        sx={(theme) => ({
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: theme.zIndex.appBar,
-          width: '100%',
-          backgroundColor: theme.palette.background.default,
-          boxShadow: `0 1px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)'}`,
-          mt: 0,
-          py: 0.325,
-        })}
-      >
-        <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', gap: 1, px: { xs: 1, sm: 1.25 } }}>
-          <IconButton
-            onClick={onBack}
-            sx={{
-              color: 'text.primary',
-              '&:hover': {
-                bgcolor: 'action.hover',
-              },
-            }}
-          >
-            <ArrowLeft sx={{ fontSize: 20 }} />
-          </IconButton>
-          <Typography
-            variant="h6"
-            sx={{
-              color: 'text.primary',
-              fontWeight: 600,
-              fontSize: { xs: '1rem', sm: '1.05rem', md: '1.1rem', lg: '1.25rem' },
-              pl: 0.5,
-            }}
-            noWrap
-          >
-            Trending Songs
-          </Typography>
-        </Container>
-      </Box>
+    <Box sx={{ pb: 10, minHeight: '100vh', pt: 0 }}>
+      <PageHeader title="All Songs" onBack={onBack} position="fixed" />
+      <Box sx={{ mt: 0 }}>
+        {chartSongs && chartSongs.length > 0 ? (
+          <>
+          <TrackList
+            items={chartSongs.slice(0, 100)}
+            skeletonCount={8}
+            renderItem={(item: ChartSongWithSaavn, idx: number) => {
+              const saavn = item.saavnData;
+              const sc = (item as any).song;
+              const rawTitle = saavn?.name || sc?.name || `#${item.position}`;
+              const rawArtist = saavn?.primaryArtists || sc?.creditName || '';
 
-      {/* Spacer to offset fixed header height so content doesn't go under it */}
-      <Box sx={{ height: { xs: 56, sm: 64 }, width: '100%' }} />
+              const normalizeDisplay = (s?: string) => {
+                if (!s) return '';
+                // remove HTML tags, decode entities, collapse whitespace
+                const withoutTags = s.replace(/<[^>]*>/g, '');
+                const decoded = decodeHtmlEntities(withoutTags);
+                return decoded.replace(/\s+/g, ' ').trim();
+              };
 
-      <Box sx={{ px: 2, pb: 12 }}>
-        {chartSongs.length === 0 && (
-          <Box>
-            {[...Array(20)].map((_, index) => (
-              <Box
-                key={index}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  mb: 1,
-                  p: 1.5,
-                }}
-              >
-                <Skeleton variant="text" width={40} height={40} sx={{ flexShrink: 0 }} />
-                <Skeleton variant="rounded" width={56} height={56} sx={{ flexShrink: 0 }} />
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Skeleton variant="text" width="70%" height={24} />
-                  <Skeleton variant="text" width="50%" height={20} />
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        )}
+              const title = normalizeDisplay(rawTitle);
+              const artist = normalizeDisplay(rawArtist);
+              const imageSrc = saavn ? getBestImage(saavn.image) : getBestImage(sc?.imageUrl ?? sc?.image);
 
-        {displayedSongs.length > 0 && (
-          <Box>
-            {displayedSongs.map((item) => (
-              <Box
-                key={item.position}
-                onClick={() => handleSongClick(item)}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  mb: 1,
-                  p: 0.5,
-                  borderRadius: 1,
-                  cursor: item.saavnData ? 'pointer' : 'default',
-                  opacity: item.saavnData ? 1 : 0.7,
-                  transition: 'background-color 0.2s',
-                  '&:hover': item.saavnData ? {
-                    backgroundColor: (theme) => 
-                      theme.palette.mode === 'light'
-                        ? 'rgba(0, 188, 212, 0.08)'
-                        : 'rgba(255, 255, 255, 0.05)',
-                  } : {},
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 1.5,
-                    overflow: 'hidden',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {item.isSearching ? (
-                    <CircularProgress size={24} sx={{ color: 'primary.main' }} />
-                  ) : item.saavnData?.image && item.saavnData.image.length > 0 ? (
-                    <img
-                      src={getImageUrl(item.saavnData.image)}
-                      alt={item.song.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : item.song.imageUrl ? (
-                    <img
-                      src={item.song.imageUrl}
-                      alt={item.song.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <Typography sx={{ color: 'text.disabled', fontSize: '1.5rem' }}>
-                      ♪
-                    </Typography>
+              return (
+                <SongItem
+                  title={title}
+                  artist={artist}
+                  imageSrc={imageSrc}
+                  onClick={() => handleSongClick(item)}
+                  rightContent={(
+                    <IconButton size="small" onClick={(e) => openMenu(e, item)}>
+                      <MoreVertical />
+                    </IconButton>
                   )}
-                </Box>
-
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      fontWeight: 500,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {typeof item.position !== 'undefined' ? `${item.position}. ${item.song.name}` : item.song.name}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {item.song.creditName}
-                  </Typography>
-                </Box>
-
-                {item.isSearching && (
-                  <Typography
-                    variant="caption"
-                    color="text.disabled"
-                    sx={{ fontSize: '0.7rem' }}
-                  >
-                    Finding...
-                  </Typography>
-                )}
-                {!item.isSearching && !item.saavnData && (
-                  <Typography
-                    variant="caption"
-                    color="text.disabled"
-                    sx={{ fontSize: '0.7rem' }}
-                  >
-                    Not available
-                  </Typography>
-                )}
-
-                {item.saavnData && (
-                  <IconButton
-                    onClick={(e) => handleMenuOpen(e, item)}
-                    size="small"
-                    sx={{ color: 'text.secondary' }}
-                  >
-                    <MoreVertical sx={{ fontSize: 18 }} />
-                  </IconButton>
-                )}
-              </Box>
-            ))}
-            
+                />
+              );
+            }}
+          />
+          <SongContextMenu
+            anchorEl={menuAnchor}
+            open={Boolean(menuAnchor)}
+            onClose={closeMenu}
+            onPlayNow={() => {
+              const s = getSongForAction(menuItem);
+              if (s && onSongSelect) onSongSelect(s, chartSongs.slice(0, 100).map(s => s.saavnData!).filter(Boolean) as Song[]);
+              closeMenu();
+            }}
+            onPlayNext={() => {
+              const s = getSongForAction(menuItem);
+              if (s && onPlayNext) onPlayNext(s);
+              closeMenu();
+            }}
+            onAddToQueue={() => {
+              const s = getSongForAction(menuItem);
+              if (s && onAddToQueue) onAddToQueue(s);
+              closeMenu();
+            }}
+            onAddToFavourites={handleAddToFavourites}
+            isFavourite={isMenuItemFavourite}
+          />
+          </>
+        ) : (
+          <Box sx={{ px: 2, pb: 12, mt: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              No songs available.
+            </Typography>
           </Box>
         )}
       </Box>
-
-      {/* Context Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-      >
-        <MenuItem onClick={() => selectedSong?.saavnData && onSongSelect(selectedSong.saavnData)}>
-          <ListItemIcon>
-            <Play fontSize="small" />
-          </ListItemIcon>
-          Play
-        </MenuItem>
-        {onPlayNext && (
-          <MenuItem onClick={handlePlayNext}>
-            <ListItemIcon>
-              <PlusSquare fontSize="small" />
-            </ListItemIcon>
-            Play Next
-          </MenuItem>
-        )}
-        {onAddToQueue && (
-          <MenuItem onClick={handleAddToQueue}>
-            <ListItemIcon>
-              <Music fontSize="small" />
-            </ListItemIcon>
-            Add to Queue
-          </MenuItem>
-        )}
-        <MenuItem onClick={handleAddToFavourites}>
-          <ListItemIcon>
-            {selectedSong?.saavnData && favouriteSongs.includes(selectedSong.saavnData.id) ? (
-              <Heart fontSize="small" />
-            ) : (
-              <Heart fontSize="small" />
-            )}
-          </ListItemIcon>
-          {selectedSong?.saavnData && favouriteSongs.includes(selectedSong.saavnData.id) ? 'Remove from Favorites' : 'Add to Favorites'}
-        </MenuItem>
-      </Menu>
-
     </Box>
   );
 };

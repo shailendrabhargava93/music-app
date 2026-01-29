@@ -20,7 +20,7 @@ import {
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import ShareIcon from '@mui/icons-material/Share';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import PageHeader from '../components/PageHeader';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import LabelOffIcon from '@mui/icons-material/LabelOff';
@@ -83,16 +83,16 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
           text: 'Check out Wave Music App - Stream your favorite songs!',
           url: window.location.origin,
         });
-      } catch (error) {
-        // Error sharing
+      } catch {
+        void 0;
       }
     } else {
       // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(window.location.origin);
         alert('App link copied to clipboard!');
-      } catch (error) {
-        // Error copying to clipboard
+      } catch {
+        void 0;
       }
     }
   };
@@ -106,45 +106,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         pt: 0
       }}
     >
-      <Box
-        sx={(theme) => ({
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: theme.zIndex.appBar,
-          width: '100%',
-          backgroundColor: theme.palette.background.default,
-          boxShadow: `0 1px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)'}`,
-          py: 0.325,
-        })}
-      >
-        <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', gap: 1, px: { xs: 1, sm: 1.25 } }}>
-          {onNavigateHome && (
-            <IconButton
-              onClick={onNavigateHome}
-              sx={{
-                color: 'text.primary',
-              }}
-            >
-              <ArrowBackIcon />
-            </IconButton>
-          )}
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              color: 'text.primary', 
-              fontWeight: 600,
-              fontSize: { xs: '1rem', sm: '1.05rem', md: '1.1rem' }
-            }}
-          >
-            Settings
-          </Typography>
-        </Container>
-      </Box>
-
-      {/* Spacer to offset fixed header height */}
-      <Box sx={{ height: { xs: 56, sm: 64 }, width: '100%' }} />
+      <PageHeader title="Settings" onBack={onNavigateHome} position="fixed" />
       <Container maxWidth="sm" sx={{ px: { xs: 2, sm: 3 }, pt: 0 }}>
         <Box sx={{ display: 'grid', gap: 2 }}>
           {/* Appearance */}

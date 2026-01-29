@@ -10,13 +10,12 @@ import {
   List,
   ListItem,
   ListItemText,
-  Snackbar,
 } from '@mui/material';
 import { KeyboardArrowDown, Favorite, FavoriteBorder, SkipPrevious, PlayArrow, Pause, SkipNext, Repeat, RepeatOne, Shuffle, MoreHoriz, Close, QueueMusic } from '../icons';
 const UpNextDrawer = lazy(() => import('./UpNextDrawer'));
 import { saavnApi } from '../services/saavnApi';
 import { Song } from '../types/api';
-import { FAVOURITE_SONGS_KEY, persistFavourites, readFavourites } from '../services/storage';
+import FavouriteToggle from './FavouriteToggle';
 import { decodeHtmlEntities } from '../utils/normalize';
 
 interface FullPlayerProps {
@@ -28,6 +27,7 @@ interface FullPlayerProps {
   albumArt?: string;
   duration?: number;
   isPlaying?: boolean;
+  isFavorite?: boolean;
   onTogglePlay?: () => void;
   onNextSong?: () => void;
   onPreviousSong?: () => void;
@@ -50,6 +50,8 @@ interface FullPlayerProps {
   language?: string;
   explicitContent?: boolean;
   source?: string; // Album or playlist name
+  onShowSnackbar?: (msg: string) => void;
+  onFavouriteChange?: (isFav: boolean) => void;
 }
 
 const FullPlayer: React.FC<FullPlayerProps> = ({ 
@@ -59,6 +61,7 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
   songTitle = 'Freefall (feat. Oliver Tree)', 
   artist = 'Whethan',
   albumArt,
+  isFavorite = false,
   duration = 151,
   isPlaying = false,
   onTogglePlay,
@@ -79,13 +82,12 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
   copyright,
   year,
   language,
-  source
-  , onReorder
+  source,
+  onShowSnackbar,
+  onFavouriteChange,
+  onReorder
 }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
   const [upNextOpen, setUpNextOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<Song[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -114,26 +116,11 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
 
   // use shared `decodeHtmlEntities` from utils
 
-  // Check if current song is in favourites
-  useEffect(() => {
-    if (!songId) return;
-    
-    const checkFavourites = async () => {
-      try {
-        const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
-        const isFav = favourites.some((song: any) => song.id === songId);
-        setIsFavorite(isFav);
-      } catch (error) {
-        console.warn('Unable to load favourite songs', error);
-      }
-    };
-
-    checkFavourites();
-  }, [songId]);
+  // (Favourite state is managed by `FavouriteToggle`)
 
   // Fetch album songs when song changes (for Up Next)
   useEffect(() => {
-    let isMounted = true;
+    const isMounted = true;
     const lastFetchedAlbumRef: { current?: string | undefined } = { current: undefined };
 
     const fetchAlbumSongs = async () => {
@@ -156,14 +143,14 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
           const albumSongs = response.data.songs;
           // Filter out current song and take up to 5 songs
           const otherSongs = albumSongs
-            .filter((song: any) => song && song.id && song.name && song.id !== songId)
+            .filter((song: Song) => song && song.id && song.name && song.id !== songId)
             .slice(0, 5);
 
           setSuggestions(otherSongs);
         } else {
           setSuggestions([]);
         }
-      } catch (error) {
+      } catch {
         setSuggestions([]);
       } finally {
         if (isMounted) setSuggestionsLoading(false);
@@ -225,42 +212,7 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
     };
   }, []);
 
-  // Toggle favourite status
-  const toggleFavorite = async () => {
-    if (!songId) return;
-
-    const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
-    const existingIndex = favourites.findIndex((song: any) => song.id === songId);
-
-    if (existingIndex >= 0) {
-      const updated = favourites.filter((song: any) => song.id !== songId);
-      setIsFavorite(false);
-      setSnackbarMessage('Removed from favourites');
-      setSnackbarOpen(true);
-      try {
-        await persistFavourites(FAVOURITE_SONGS_KEY, updated);
-      } catch (error) {
-        console.warn('Unable to persist favourite songs', error);
-      }
-    } else {
-      const newFavourite = {
-        id: songId,
-        name: songTitle,
-        artist: artist,
-        albumArt: albumArt || '',
-        addedAt: Date.now(),
-      };
-      const updated = [newFavourite, ...favourites];
-      setIsFavorite(true);
-      setSnackbarMessage('Added to favourites ❤️');
-      setSnackbarOpen(true);
-      try {
-        await persistFavourites(FAVOURITE_SONGS_KEY, updated);
-      } catch (error) {
-        console.warn('Unable to persist favourite songs', error);
-      }
-    }
-  };
+  // Favourite toggling is delegated to `FavouriteToggle` (persistence + snackbar)
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -416,16 +368,17 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
                 {artist}
               </Typography>
             </Box>
-            <IconButton
-              onClick={toggleFavorite}
-              sx={{ 
-                color: isFavorite ? 'primary.main' : 'text.secondary',
-                mt: -0.5,
+            <FavouriteToggle
+              item={{ id: songId, name: songTitle, image: albumArt }}
+              initial={isFavorite}
+              onChange={(v: boolean) => {
+                // FavouriteToggle handles snackbar messaging centrally; just notify parent state
+                if (typeof onFavouriteChange === 'function') onFavouriteChange(v);
               }}
-              aria-label="favorite"
-            >
-              {isFavorite ? <Favorite /> : <FavoriteBorder />}
-            </IconButton>
+              onShowSnackbar={onShowSnackbar}
+              icon={{ fav: <Favorite sx={{ color: 'error.main' }} />, notFav: <FavoriteBorder /> }}
+              iconButtonSx={{ mt: -0.5 }}
+            />
           </Box>
         </Box>
 
@@ -766,32 +719,7 @@ const FullPlayer: React.FC<FullPlayerProps> = ({
         </Box>
       </Drawer>
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={2000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Box
-          sx={{
-            bgcolor: 'background.paper',
-            color: 'text.primary',
-            px: 3,
-            py: 1.5,
-            borderRadius: 2,
-            boxShadow: 3,
-            border: '1px solid',
-            borderColor: 'divider',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-          }}
-        >
-          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-            {snackbarMessage}
-          </Typography>
-        </Box>
-      </Snackbar>
+      {/* Snackbars are handled by FavouriteToggle; no local snackbar needed */}
     </Drawer>
   );
 };

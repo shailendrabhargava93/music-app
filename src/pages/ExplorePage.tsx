@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, Chip, IconButton, Skeleton, Container } from '@mui/material';
-import { ArrowBack } from '../icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import type { Theme } from '@mui/material/styles';
+import { Box, Typography, Chip, Skeleton } from '@mui/material';
+import PageHeader from '../components/PageHeader';
 import { saavnApi } from '../services/saavnApi';
+import { readLocalJson, writeLocalJson } from '../services/storage';
 import { decodeHtmlEntities } from '../utils/normalize';
 import SongItemSkeleton from '../components/SongItemSkeleton';
 
@@ -46,16 +48,17 @@ const genres = [
 ];
 
 const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
+  type AnyRecord = Record<string, unknown>;
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [playlists, setPlaylists] = useState<any[]>([]);
+  const [playlists, setPlaylists] = useState<AnyRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleCategoryClick = async (category: string) => {
+  const handleCategoryClick = useCallback(async (category: string) => {
     setSelectedCategory(category);
     // persist current selection so navigation back restores it
     try {
       localStorage.setItem('explore:selectedCategory', category);
-    } catch (e) {
+    } catch {
       // ignore
     }
     setLoading(true);
@@ -63,14 +66,13 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
     try {
       // Check cache first
       const cacheKey = `explore_${category.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-      const cachedData = localStorage.getItem(cacheKey);
-      const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+      const cachedData = readLocalJson<AnyRecord[]>(cacheKey, null as unknown as AnyRecord[] | null);
+      const cacheTimestamp = readLocalJson<string | null>(`${cacheKey}_timestamp`, null as unknown as string | null);
       const cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours
-
       if (cachedData && cacheTimestamp) {
         const age = Date.now() - parseInt(cacheTimestamp);
         if (age < cacheExpiry) {
-          setPlaylists(JSON.parse(cachedData));
+          setPlaylists(cachedData);
           setLoading(false);
           return;
         }
@@ -79,27 +81,27 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
       // Fetch from API
       const response = await saavnApi.searchPlaylists(category, 10);
       if (response?.data?.results) {
-        const fetchedPlaylists = response.data.results.slice(0, 10);
+        const fetchedPlaylists = response.data.results.slice(0, 10) as AnyRecord[];
         setPlaylists(fetchedPlaylists);
         
         // Cache the results
-        localStorage.setItem(cacheKey, JSON.stringify(fetchedPlaylists));
+        writeLocalJson(cacheKey, fetchedPlaylists);
         localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
       }
-    } catch (error) {
+    } catch {
       // Error fetching playlists
       setPlaylists([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleBack = () => {
     setSelectedCategory(null);
     setPlaylists([]);
     try {
       localStorage.removeItem('explore:selectedCategory');
-    } catch (e) {
+    } catch {
       // ignore
     }
   };
@@ -112,11 +114,11 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
         // load cached playlists or fetch
         handleCategoryClick(last);
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    
+  }, [handleCategoryClick]);
 
   const getImageUrl = (images: Array<{ quality: string; url: string }>) => {
     if (!images || images.length === 0) return '';
@@ -134,42 +136,7 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
     <Box sx={{ pb: 10, minHeight: '100vh', pt: 0 }}>
       {selectedCategory ? (
         <>
-          {/* Fixed header - match AllSongsPage style */}
-          <Box
-            sx={(theme) => ({
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              zIndex: theme.zIndex.appBar,
-              width: '100%',
-              backgroundColor: theme.palette.background.default,
-              boxShadow: `0 1px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)'}`,
-              mt: 0,
-              py: 0.325,
-            })}
-          >
-            <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', gap: 1, px: { xs: 1, sm: 1.25 } }}>
-              <IconButton
-                onClick={handleBack}
-                sx={{
-                  color: 'text.primary',
-                  '&:hover': {
-                    bgcolor: 'action.hover',
-                  },
-                }}
-              >
-                <ArrowBack />
-              </IconButton>
-
-              <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, fontSize: '1.1rem', pl: 0.5 }} noWrap>
-                {selectedCategory}
-              </Typography>
-            </Container>
-          </Box>
-
-          {/* Spacer to offset fixed header height so content doesn't go under it */}
-          <Box sx={{ height: { xs: 56, sm: 64 }, width: '100%' }} />
+          <PageHeader title={selectedCategory} onBack={handleBack} position="fixed" />
 
           <Box sx={{ px: 2, pb: 8 }}>
             {/* Loading State */}
@@ -208,7 +175,7 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onPlaylistSelect }) => {
                       cursor: 'pointer',
                       borderRadius: 1,
                       '&:hover': {
-                        bgcolor: (theme) =>
+                        bgcolor: (theme: Theme) =>
                           theme.palette.mode === 'light'
                             ? 'rgba(0, 188, 212, 0.08)'
                             : 'rgba(255, 255, 255, 0.05)',

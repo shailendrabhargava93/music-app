@@ -2,21 +2,20 @@ import React, { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
+  IconButton,
+  Chip,
+  Container,
   List,
   ListItem,
   ListItemAvatar,
   ListItemText,
   Avatar,
-  IconButton,
-  Chip,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  Container,
 } from '@mui/material';
-import { MusicNote, Favorite, Delete, Album, PlaylistPlay, Person, MoreVertical, PlayArrow } from '../icons';
+import TrackList from '../components/TrackList';
+import HorizontalScroller from '../components/HorizontalScroller';
+import { MusicNote, Favorite, Album, PlaylistPlay, Person, MoreVertical } from '../icons';
+import SongContextMenu from '../components/SongContextMenu';
 import SongItem from '../components/SongItem';
-import SongItemSkeleton from '../components/SongItemSkeleton';
 import {
   FAVOURITE_ALBUMS_KEY,
   FAVOURITE_PLAYLISTS_KEY,
@@ -65,6 +64,8 @@ interface FavouritesPageProps {
   onArtistSelect?: (artistId: string, artistName: string, artistImage: string) => void;
 }
 
+type AnyRecord = Record<string, unknown>;
+
 const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSelect, onPlaylistSelect, onArtistSelect }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [favourites, setFavourites] = useState<FavouriteSong[]>([]);
@@ -73,7 +74,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
   const [favouriteArtists, setFavouriteArtists] = useState<FavouriteArtist[]>([]);
   const [loading, setLoading] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<Song | FavouriteAlbum | FavouritePlaylist | FavouriteArtist | AnyRecord | null>(null);
 
   // Load favourites from IndexedDB
   useEffect(() => {
@@ -93,7 +94,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
         return (b.addedAt || 0) - (a.addedAt || 0);
       });
       setFavourites(sorted);
-    } catch (error) {
+    } catch {
       setFavourites([]);
     }
   };
@@ -105,7 +106,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
         return (b.addedAt || 0) - (a.addedAt || 0);
       });
       setFavouriteAlbums(sorted);
-    } catch (error) {
+    } catch {
       setFavouriteAlbums([]);
     }
   };
@@ -117,7 +118,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
         return (b.addedAt || 0) - (a.addedAt || 0);
       });
       setFavouritePlaylists(sorted);
-    } catch (error) {
+    } catch {
       setFavouritePlaylists([]);
     }
   };
@@ -129,7 +130,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
         return (b.addedAt || 0) - (a.addedAt || 0);
       });
       setFavouriteArtists(sorted);
-    } catch (error) {
+    } catch {
       setFavouriteArtists([]);
     }
   };
@@ -139,8 +140,8 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
     setFavourites(updated);
     try {
       await persistFavourites(FAVOURITE_SONGS_KEY, updated);
-    } catch (error) {
-      console.warn('Failed to persist favourite songs', error);
+    } catch {
+      console.warn('Failed to persist favourite songs');
     }
   };
 
@@ -149,8 +150,8 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
     setFavouriteAlbums(updated);
     try {
       await persistFavourites(FAVOURITE_ALBUMS_KEY, updated);
-    } catch (error) {
-      console.warn('Failed to persist favourite albums', error);
+    } catch {
+      console.warn('Failed to persist favourite albums');
     }
   };
 
@@ -159,8 +160,8 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
     setFavouritePlaylists(updated);
     try {
       await persistFavourites(FAVOURITE_PLAYLISTS_KEY, updated);
-    } catch (error) {
-      console.warn('Failed to persist favourite playlists', error);
+    } catch {
+      console.warn('Failed to persist favourite playlists');
     }
   };
 
@@ -169,12 +170,12 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
     setFavouriteArtists(updated);
     try {
       await persistFavourites(FAVOURITE_ARTISTS_KEY, updated);
-    } catch (error) {
-      console.warn('Failed to persist favourite artists', error);
+    } catch {
+      console.warn('Failed to persist favourite artists');
     }
   };
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, item: any) => {
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, item: Song | FavouriteAlbum | FavouritePlaylist | FavouriteArtist | AnyRecord) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
     setSelectedItem(item);
@@ -242,7 +243,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
         <Box sx={{ mb: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Favorite sx={{ color: 'primary.main', fontSize: 32 }} />
+              <Favorite sx={{ color: 'error.main', fontSize: 32 }} />
               <Typography 
                 variant="h5" 
                 sx={{ 
@@ -259,7 +260,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
           </Box>
 
           {/* Tabs - compact horizontal scroll for chips only */}
-          <Box sx={{ mb: 2, overflowX: 'auto', mx: -2, px: 2, scrollbarWidth: 'none', msOverflowStyle: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+          <HorizontalScroller px={0} gap={2}>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'nowrap', alignItems: 'center' }}>
               <Chip
                 size="small"
@@ -330,7 +331,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
                 }}
               />
             </Box>
-          </Box>
+          </HorizontalScroller>
         </Box>
       </Container>
 
@@ -339,54 +340,52 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
         {/* Songs Tab */}
         {activeTab === 0 && (
           <>
-            {loading ? (
-              <Box sx={{ px: 2 }}>
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <SongItemSkeleton key={i} />
-                ))}
-              </Box>
-            ) : favourites.length === 0 ? (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minHeight: '50vh',
-                  gap: 2,
-                  px: { xs: 1, sm: 1.5 },
-                }}
-              >
-                <MusicNote sx={{ fontSize: 80, color: 'text.disabled', opacity: 0.3 }} />
-                <Typography variant="h6" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-                  No favourite songs yet
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'text.disabled', textAlign: 'center' }}>
-                  Add songs to your library by tapping the heart icon
-                </Typography>
-              </Box>
-            ) : (
-              <List sx={{ px: 2 }}>
-                {favourites.map((song) => (
-                  <SongItem
-                    key={song.id}
-                    title={decodeHtmlEntities(song.name)}
-                    artist={decodeHtmlEntities(song.artist)}
-                    imageSrc={song.albumArt || ''}
-                    onClick={() => onSongSelect(song.id)}
-                    rightContent={
-                      <IconButton
-                        edge="end"
-                        onClick={(e) => handleMenuOpen(e, song)}
-                        sx={{ color: 'text.secondary' }}
-                      >
-                        <MoreVertical />
-                      </IconButton>
-                    }
-                  />
-                ))}
-              </List>
-            )}
+            <TrackList
+              items={favourites}
+              loading={loading}
+              keyExtractor={(s: FavouriteSong) => s.id}
+              skeletonCount={6}
+              renderEmpty={(
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '50vh',
+                    gap: 2,
+                    px: { xs: 1, sm: 1.5 },
+                  }}
+                >
+                  <MusicNote sx={{ fontSize: 80, color: 'text.disabled', opacity: 0.3 }} />
+                  <Typography variant="h6" sx={{ color: 'text.secondary', textAlign: 'center' }}>
+                    No favourite songs yet
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.disabled', textAlign: 'center' }}>
+                    Add songs to your library by tapping the heart icon
+                  </Typography>
+                </Box>
+              )}
+              renderItem={(song: FavouriteSong) => (
+                <SongItem
+                  key={song.id}
+                  title={decodeHtmlEntities(song.name)}
+                  artist={decodeHtmlEntities(song.artist)}
+                  imageSrc={song.albumArt || ''}
+                  onClick={() => onSongSelect(song.id)}
+                  rightContent={
+                    <IconButton
+                      edge="end"
+                      onClick={(e) => handleMenuOpen(e, song)}
+                      sx={{ color: 'text.secondary' }}
+                    >
+                      <MoreVertical />
+                    </IconButton>
+                  }
+                  meta={`Added ${formatDate(song.addedAt)}`}
+                />
+              )}
+            />
           </>
         )}
 
@@ -486,7 +485,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          {decodeHtmlEntities(album.name)}
+                          {decodeHtmlEntities((album.name || '').replace(/\s+/g, ' ').trim())}
                         </Typography>
                       }
                       secondary={
@@ -765,59 +764,21 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onSongSelect, onAlbumSe
           </>
         )}
 
-        {/* Context Menu */}
-        <Menu
+        <SongContextMenu
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={handleMenuClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
+          onPlayNow={() => {
+            if (activeTab === 0 && selectedItem) onSongSelect(selectedItem.id);
           }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-        >
-          {activeTab === 0 && (
-            <MenuItem onClick={() => { onSongSelect(selectedItem?.id); handleMenuClose(); }}>
-              <ListItemIcon>
-                <PlayArrow fontSize="small" />
-              </ListItemIcon>
-              <Typography variant="body2">Play Now</Typography>
-            </MenuItem>
-          )}
-          {activeTab === 1 && onAlbumSelect && (
-            <MenuItem onClick={() => { onAlbumSelect(selectedItem?.id, selectedItem?.name, selectedItem?.image); handleMenuClose(); }}>
-              <ListItemIcon>
-                <PlayArrow fontSize="small" />
-              </ListItemIcon>
-              <Typography variant="body2">Open Album</Typography>
-            </MenuItem>
-          )}
-          {activeTab === 2 && onPlaylistSelect && (
-            <MenuItem onClick={() => { onPlaylistSelect(selectedItem?.id, selectedItem?.name, selectedItem?.image); handleMenuClose(); }}>
-              <ListItemIcon>
-                <PlayArrow fontSize="small" />
-              </ListItemIcon>
-              <Typography variant="body2">Open Playlist</Typography>
-            </MenuItem>
-          )}
-          {activeTab === 3 && onArtistSelect && (
-            <MenuItem onClick={() => { onArtistSelect(selectedItem?.id, selectedItem?.name, selectedItem?.image); handleMenuClose(); }}>
-              <ListItemIcon>
-                <PlayArrow fontSize="small" />
-              </ListItemIcon>
-              <Typography variant="body2">Open Artist</Typography>
-            </MenuItem>
-          )}
-          <MenuItem onClick={handleRemove} sx={{ color: 'error.main' }}>
-            <ListItemIcon>
-              <Delete fontSize="small" sx={{ color: 'error.main' }} />
-            </ListItemIcon>
-            <Typography variant="body2">Remove from Library</Typography>
-          </MenuItem>
-        </Menu>
+          isFavourite={activeTab === 0 || activeTab === 1 || activeTab === 2}
+          onOpenAlbum={activeTab === 1 && onAlbumSelect ? () => onAlbumSelect!(selectedItem?.id, selectedItem?.name, selectedItem?.image) : undefined}
+          onOpenPlaylist={activeTab === 2 && onPlaylistSelect ? () => onPlaylistSelect!(selectedItem?.id, selectedItem?.name, selectedItem?.image) : undefined}
+          onOpenArtist={activeTab === 3 && onArtistSelect ? () => onArtistSelect!(selectedItem?.id, selectedItem?.name, selectedItem?.image) : undefined}
+          onRemove={handleRemove}
+          removeLabel="Remove from Library"
+          mode="compact"
+        />
       </Box>
     </Box>
   );

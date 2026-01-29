@@ -5,12 +5,12 @@ import {
   Avatar,
   Skeleton,
   IconButton,
-  Menu,
-  MenuItem,
-  ListItemIcon,
+  
 } from '@mui/material';
-import { PlayArrow, FavoriteBorder, Favorite, PlaylistAdd, QueueMusic, Album, PlaylistPlay, ArrowForward, MusicNote } from '../icons';
+import { Album, PlaylistPlay, ArrowForward, MusicNote } from '../icons';
 import Header from '../components/Header';
+import HorizontalScroller from '../components/HorizontalScroller';
+import SongContextMenu from '../components/SongContextMenu';
 import { Song } from '../types/api';
 import { SoundChartsItem } from '../services/soundChartsApi';
 import { saavnApi } from '../services/saavnApi';
@@ -56,7 +56,9 @@ interface ArtistPreview {
   image?: string;
 }
 
-const getHighQualityImage = (images?: any): string => getBestImage(images);
+type AnyRecord = Record<string, unknown>;
+
+const getHighQualityImage = (images?: unknown): string => getBestImage(images);
 
 const normalizeArtistName = (raw?: string): string => {
   const decoded = decodeHtmlEntities(raw || '');
@@ -76,16 +78,15 @@ const HomePage: React.FC<HomePageProps> = ({
   onSettingsClick,
   onAddToQueue,
   onPlayNext,
-  onShowSnackbar,
 }) => {
   const [displayedSongs, setDisplayedSongs] = useState<ChartSongWithSaavn[]>([]);
-  const [latestAlbums, setLatestAlbums] = useState<any[]>([]);
+  const [latestAlbums, setLatestAlbums] = useState<AnyRecord[]>([]);
   const [albumsLoading, setAlbumsLoading] = useState(true);
   const [albumsFetched, setAlbumsFetched] = useState(false);
-  const [trendingPlaylists, setTrendingPlaylists] = useState<any[]>([]);
+  const [trendingPlaylists, setTrendingPlaylists] = useState<AnyRecord[]>([]);
   const [playlistsLoading, setPlaylistsLoading] = useState(true);
   const [playlistsFetched, setPlaylistsFetched] = useState(false);
-  const [topCharts, setTopCharts] = useState<any[]>([]);
+  const [topCharts, setTopCharts] = useState<AnyRecord[]>([]);
   const [topChartsLoading, setTopChartsLoading] = useState(true);
   const [topChartsFetched, setTopChartsFetched] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -97,7 +98,9 @@ const HomePage: React.FC<HomePageProps> = ({
   const artistsContainerRef = React.useRef<HTMLDivElement | null>(null);
 
   // Fetch latest albums and trending playlists using the launch API
+   
   useEffect(() => {
+    if (albumsFetched && playlistsFetched && topChartsFetched) return;
     const fetchLaunchData = async () => {
       try {
         // Albums
@@ -157,7 +160,7 @@ const HomePage: React.FC<HomePageProps> = ({
         const payload = launchResp?.data ?? launchResp ?? {};
 
         // Helper to convert single image URL into the array format expected by getHighQualityImage
-        const normalizeImage = (img: any) => {
+        const normalizeImage = (img: unknown) => {
           if (!img) return [];
           if (Array.isArray(img)) return img;
           if (typeof img === 'string') return [{ link: img }];
@@ -165,10 +168,10 @@ const HomePage: React.FC<HomePageProps> = ({
         };
 
         // Map a launch album/play object to the shape HomePage expects
-        const mapAlbum = (item: any) => {
-          const name = item.title ?? item.name ?? '';
+        const mapAlbum = (item: AnyRecord) => {
+          const name = (item.title as string) ?? (item.name as string) ?? '';
           const image = normalizeImage(item.image ?? item.images ?? item.imageUrl);
-          const primaryArtist = item.more_info?.artistMap?.artists?.[0]?.name || item.more_info?.artistMap?.primary_artists?.[0]?.name || item.subtitle || '';
+          const primaryArtist = ((item.more_info as AnyRecord)?.artistMap as AnyRecord)?.artists?.[0]?.name as string | undefined || ((item.more_info as AnyRecord)?.artistMap as AnyRecord)?.primary_artists?.[0]?.name as string | undefined || (item.subtitle as string | undefined) || '';
           return {
             id: item.id,
             name,
@@ -180,8 +183,8 @@ const HomePage: React.FC<HomePageProps> = ({
           };
         };
 
-        const mapPlaylist = (item: any) => {
-          const name = item.title ?? item.name ?? '';
+        const mapPlaylist = (item: AnyRecord) => {
+          const name = (item.title as string) ?? (item.name as string) ?? '';
           const image = normalizeImage(item.image ?? item.images ?? item.imageUrl);
           return {
             id: item.id,
@@ -192,9 +195,9 @@ const HomePage: React.FC<HomePageProps> = ({
         };
 
         // Use launch payload arrays directly — do not filter, merge, or deduplicate.
-        const albumsSource: any[] = Array.isArray(payload.new_albums) ? payload.new_albums : [];
-        const playlistsSource: any[] = Array.isArray(payload.top_playlists) ? payload.top_playlists : [];
-        const chartsSource: any[] = Array.isArray(payload.top_charts)
+        const albumsSource: AnyRecord[] = Array.isArray(payload.new_albums) ? payload.new_albums : [];
+        const playlistsSource: AnyRecord[] = Array.isArray(payload.top_playlists) ? payload.top_playlists : [];
+        const chartsSource: AnyRecord[] = Array.isArray(payload.top_charts)
           ? payload.top_charts
           : Array.isArray(payload.charts)
           ? payload.charts
@@ -204,10 +207,10 @@ const HomePage: React.FC<HomePageProps> = ({
 
         const albumsMapped = albumsSource.map(mapAlbum);
         const playlistsMapped = playlistsSource.map(mapPlaylist);
-        const chartsMapped = chartsSource.map((item: any) => {
-          const name = item.title ?? item.name ?? item.song ?? item.trackName ?? '';
+        const chartsMapped = chartsSource.map((item: AnyRecord) => {
+          const name = (item.title as string) ?? (item.name as string) ?? (item.song as string) ?? (item.trackName as string) ?? '';
           const image = normalizeImage(item.image ?? item.images ?? item.imageUrl ?? item.thumbnail ?? item.cover);
-          const primaryArtist = item.more_info?.artistMap?.artists?.[0]?.name || item.more_info?.artistMap?.primary_artists?.[0]?.name || item.subtitle || item.artist || '';
+          const primaryArtist = (((item.more_info as AnyRecord)?.artistMap as AnyRecord)?.artists?.[0]?.name as string | undefined) || (((item.more_info as AnyRecord)?.artistMap as AnyRecord)?.primary_artists?.[0]?.name as string | undefined) || (item.subtitle as string | undefined) || (item.artist as string | undefined) || '';
           return {
             id: item.id || item.songId || item.trackId || item.sid || name,
             name,
@@ -239,9 +242,9 @@ const HomePage: React.FC<HomePageProps> = ({
         }
 
         // Recommended artists from launch payload
-        const artistsSource: any[] = Array.isArray(payload.artist_recos) ? payload.artist_recos : [];
-        const artistsMapped: ArtistPreview[] = artistsSource.map((item: any) => {
-          const name = item.name || item.title || item.artist || '';
+        const artistsSource: AnyRecord[] = Array.isArray(payload.artist_recos) ? payload.artist_recos : [];
+        const artistsMapped: ArtistPreview[] = artistsSource.map((item: AnyRecord) => {
+          const name = (item.name as string) || (item.title as string) || (item.artist as string) || '';
           const imageArr = normalizeImage(item.image ?? item.images ?? item.imageUrl ?? item.avatar ?? item.thumbnail ?? item.cover);
           const image = getHighQualityImage(Array.isArray(imageArr) ? imageArr : []);
           return { id: item.id || item.artistId || item.sid || name, name: normalizeArtistName(name), image };
@@ -252,12 +255,12 @@ const HomePage: React.FC<HomePageProps> = ({
           try {
             await setMeta(RECOMMENDED_ARTISTS_KEY, artistsMapped);
             await setMeta(RECOMMENDED_ARTISTS_TIMESTAMP_KEY, Date.now());
-          } catch (err) {
+          } catch {
             // ignore cache write failures
           }
         }
-      } catch (error) {
-        console.warn('Failed to load launch data', error);
+      } catch {
+        console.warn('Failed to load launch data');
       } finally {
         setAlbumsLoading(false);
         setPlaylistsLoading(false);
@@ -266,7 +269,7 @@ const HomePage: React.FC<HomePageProps> = ({
     };
 
     fetchLaunchData();
-  }, []);
+  }, [albumsFetched, playlistsFetched, topChartsFetched]);
 
   // Update displayed songs - show only first 10 on home page
   useEffect(() => {
@@ -279,7 +282,7 @@ const HomePage: React.FC<HomePageProps> = ({
   useEffect(() => {
     const loadFavouriteIds = async () => {
       const saved = await readFavourites(FAVOURITE_SONGS_KEY);
-      setFavouriteSongs(saved.map((song: any) => song.id));
+      setFavouriteSongs((saved as AnyRecord[]).map((song) => (song['id'] as string)));
     };
 
     loadFavouriteIds();
@@ -343,15 +346,12 @@ const HomePage: React.FC<HomePageProps> = ({
 
     try {
       const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
-      const isFavourite = favourites.some((song: any) => song.id === selectedSong.saavnData!.id);
+      const isFavourite = (favourites as AnyRecord[]).some((song) => (song['id'] as string) === selectedSong.saavnData!.id);
 
       if (isFavourite) {
-        const updated = favourites.filter((song: any) => song.id !== selectedSong.saavnData!.id);
+        const updated = (favourites as AnyRecord[]).filter((song) => (song['id'] as string) !== selectedSong.saavnData!.id);
         setFavouriteSongs(prev => prev.filter(id => id !== selectedSong.saavnData!.id));
-        await persistFavourites(FAVOURITE_SONGS_KEY, updated);
-        if (onShowSnackbar) {
-          onShowSnackbar('Removed from favourites');
-        }
+        await persistFavourites(FAVOURITE_SONGS_KEY, updated as unknown[]);
       } else {
         const newFavourite = {
           id: selectedSong.saavnData.id,
@@ -362,15 +362,12 @@ const HomePage: React.FC<HomePageProps> = ({
             : '',
           addedAt: Date.now(),
         };
-        const updated = [...favourites, newFavourite];
+        const updated = [...(favourites as AnyRecord[]), newFavourite];
         setFavouriteSongs(prev => [...prev, selectedSong.saavnData!.id]);
-        await persistFavourites(FAVOURITE_SONGS_KEY, updated);
-        if (onShowSnackbar) {
-          onShowSnackbar('Added to favourites ❤️');
-        }
+        await persistFavourites(FAVOURITE_SONGS_KEY, updated as unknown[]);
       }
-    } catch (error) {
-      console.warn('Unable to update favourite songs', error);
+    } catch {
+      console.warn('Unable to update favourite songs');
     }
   };
 
@@ -394,7 +391,7 @@ const HomePage: React.FC<HomePageProps> = ({
           </Typography>
 
           {albumsLoading ? (
-              <Box sx={{ display: 'flex', gap: 2, pb: 2, overflowX: 'auto' }}>
+              <HorizontalScroller gap={2} px={2}>
                 {[...Array(6)].map((_, idx) => (
                   <Box key={idx} sx={{ minWidth: 140, maxWidth: 140 }}>
                     <Skeleton variant="rounded" width={140} height={140} sx={{ mb: 1 }} />
@@ -402,21 +399,9 @@ const HomePage: React.FC<HomePageProps> = ({
                     <Skeleton variant="text" width="60%" />
                   </Box>
                 ))}
-              </Box>
+              </HorizontalScroller>
           ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                gap: 2,
-                overflowX: 'auto',
-                pb: 2,
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-                '&::-webkit-scrollbar': {
-                  display: 'none',
-                },
-              }}
-            >
+            <HorizontalScroller gap={2} px={2} sx={{ pb: 2 }}>
               {latestAlbums.map((album) => (
                 <Box
                   key={album.id}
@@ -496,9 +481,135 @@ const HomePage: React.FC<HomePageProps> = ({
                   </Typography>
                 </Box>
               ))}
-            </Box>
+            </HorizontalScroller>
           )}
         </Box>
+
+        {/* Trending Songs Section (Top 10 grid) */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+            Trending Songs
+          </Typography>
+          {chartSongs.length > 10 && (
+            <IconButton
+              onClick={onViewAllCharts}
+              size="small"
+              sx={{
+                color: 'primary.main',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+              }}
+              aria-label="view all trending songs"
+            >
+              <ArrowForward />
+            </IconButton>
+          )}
+        </Box>
+
+        {chartSongsLoading && displayedSongs.length === 0 && (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(5, 1fr)' }, gap: 2, mb: 2 }}>
+            {[...Array(10)].map((_, idx) => (
+              <Box key={idx} sx={{ width: '100%', textAlign: 'center' }}>
+                <Skeleton variant="rounded" width="100%" height={160} sx={{ mb: 1 }} />
+                <Skeleton width="80%" />
+              </Box>
+            ))}
+          </Box>
+        )}
+
+        {displayedSongs.length > 0 && (
+          <Box sx={{ mb: 3, overflowY: 'visible' }}>
+            <HorizontalScroller gap={3} px={2} sx={{ overflowY: 'hidden', pr: 2, WebkitOverflowScrolling: 'touch' }}>
+              {displayedSongs.map((item, idx) => {
+                const pos = typeof item.position !== 'undefined' ? item.position : idx + 1;
+                
+                // Helper to choose best quality image
+                const chooseBestImage = (saavnImgs: AnyRecord[], fallback?: string) => {
+                  if (Array.isArray(saavnImgs) && saavnImgs.length > 0) {
+                    const preferred = ['500x500', '300x300', '150x150', '50x50'];
+                    for (const p of preferred) {
+                      const found = saavnImgs.find((i: AnyRecord) => (i['quality'] as string | undefined) === p || ((i['link'] as string | undefined) && (i['link'] as string).includes(p)) || ((i['url'] as string | undefined) && (i['url'] as string).includes(p)));
+                      if (found) return (found['url'] as string) || (found['link'] as string) || (found as unknown as string);
+                    }
+                    const first = saavnImgs[0];
+                    return (first['url'] as string) || (first['link'] as string) || (first as unknown as string);
+                  }
+                  return fallback || '';
+                };
+
+                const posterUrl = item.saavnData && item.saavnData.image && item.saavnData.image.length > 0 
+                  ? chooseBestImage(item.saavnData.image, item.song.imageUrl) 
+                  : (item.song.imageUrl || '');
+
+                return (
+                  <Box 
+                    key={pos} 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'flex-end', 
+                      gap: 0,
+                      cursor: item.saavnData ? 'pointer' : 'default',
+                      transition: 'transform 0.2s',
+                      flexShrink: 0,
+                      '&:hover': {
+                        transform: item.saavnData ? 'scale(1.03)' : 'none'
+                      }
+                    }} 
+                    onClick={() => handleSongClick(item)}
+                  >
+                    {/* Large rank number with Netflix-style thick black outline */}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'center',
+                        width: { xs: 60, sm: 90 },
+                        height: { xs: 130, sm: 160 },
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: { xs: 90, sm: 150 },
+                          lineHeight: 0.85,
+                          fontWeight: 900,
+                          fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+                          letterSpacing: '-8px',
+                          WebkitTextStroke: '6px #000',
+                          color: '#e5e5e5',
+                          paintOrder: 'stroke fill',
+                          textShadow: '0 4px 8px rgba(0,0,0,0.5)',
+                          userSelect: 'none',
+                          margin: 0,
+                          padding: 0,
+                        }}
+                      >
+                        {pos}
+                      </Typography>
+                    </Box>
+
+                    {/* Album poster - square aspect */}
+                    <Avatar 
+                      src={posterUrl} 
+                      variant="rounded" 
+                      sx={{ 
+                        width: { xs: 130, sm: 160 }, 
+                        height: { xs: 130, sm: 160 }, 
+                        borderRadius: 1.5,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)', 
+                        flexShrink: 0, 
+                        '& img': { objectFit: 'cover', width: '100%', height: '100%' } 
+                      }}
+                    >
+                      <MusicNote sx={{ fontSize: 40 }} />
+                    </Avatar>
+                  </Box>
+                );
+              })}
+            </HorizontalScroller>
+          </Box>
+        )}
 
         {/* Top Charts Section */}
         <Box sx={{ mb: 4 }}>
@@ -507,28 +618,16 @@ const HomePage: React.FC<HomePageProps> = ({
           </Typography>
 
           {topChartsLoading ? (
-            <Box sx={{ display: 'flex', gap: 2, pb: 2, overflowX: 'auto' }}>
+            <HorizontalScroller gap={2} px={2}>
               {[...Array(6)].map((_, idx) => (
                 <Box key={idx} sx={{ minWidth: 140, maxWidth: 140 }}>
                   <Skeleton variant="rounded" width={140} height={140} sx={{ mb: 1 }} />
                   <Skeleton variant="text" width="80%" />
                 </Box>
               ))}
-            </Box>
+            </HorizontalScroller>
           ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                gap: 2,
-                overflowX: 'auto',
-                pb: 2,
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-                '&::-webkit-scrollbar': {
-                  display: 'none',
-                },
-              }}
-            >
+            <HorizontalScroller gap={2} px={2} sx={{ pb: 2 }}>
               {topCharts.map((chart) => (
                 <Box
                   key={chart.id}
@@ -603,7 +702,7 @@ const HomePage: React.FC<HomePageProps> = ({
                   </Typography>
                 </Box>
               ))}
-            </Box>
+            </HorizontalScroller>
           )}
         </Box>
 
@@ -614,28 +713,16 @@ const HomePage: React.FC<HomePageProps> = ({
           </Typography>
 
           {playlistsLoading ? (
-              <Box sx={{ display: 'flex', gap: 2, pb: 2, overflowX: 'auto' }}>
+              <HorizontalScroller gap={2} px={2}>
                 {[...Array(6)].map((_, idx) => (
                   <Box key={idx} sx={{ minWidth: 140, maxWidth: 140 }}>
                     <Skeleton variant="rounded" width={140} height={140} sx={{ mb: 1 }} />
                     <Skeleton variant="text" width="80%" />
                   </Box>
                 ))}
-              </Box>
+              </HorizontalScroller>
           ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                gap: 2,
-                overflowX: 'auto',
-                pb: 2,
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-                '&::-webkit-scrollbar': {
-                  display: 'none',
-                },
-              }}
-            >
+            <HorizontalScroller gap={2} px={2} sx={{ pb: 2 }}>
               {trendingPlaylists.map((playlist) => (
                 <Box
                   key={playlist.id}
@@ -681,147 +768,11 @@ const HomePage: React.FC<HomePageProps> = ({
                   </Typography>
                 </Box>
               ))}
-            </Box>
+            </HorizontalScroller>
           )}
         </Box>
 
-        {/* Trending Songs Section (Top 10 grid) */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-            Trending Songs
-          </Typography>
-          {chartSongs.length > 10 && (
-            <IconButton
-              onClick={onViewAllCharts}
-              size="small"
-              sx={{
-                color: 'primary.main',
-                '&:hover': {
-                  bgcolor: 'action.hover',
-                },
-              }}
-              aria-label="view all trending songs"
-            >
-              <ArrowForward />
-            </IconButton>
-          )}
-        </Box>
-
-        {chartSongsLoading && displayedSongs.length === 0 && (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(5, 1fr)' }, gap: 2, mb: 2 }}>
-            {[...Array(10)].map((_, idx) => (
-              <Box key={idx} sx={{ width: '100%', textAlign: 'center' }}>
-                <Skeleton variant="rounded" width="100%" height={160} sx={{ mb: 1 }} />
-                <Skeleton width="80%" />
-              </Box>
-            ))}
-          </Box>
-        )}
-
-        {displayedSongs.length > 0 && (
-          <Box sx={{ mb: 3, overflowY: 'visible' }}>
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                gap: 3, 
-                overflowX: 'auto',
-                overflowY: 'hidden',
-                pr: 2,
-                scrollbarWidth: 'none', 
-                msOverflowStyle: 'none', 
-                '&::-webkit-scrollbar': { display: 'none' },
-                WebkitOverflowScrolling: 'touch',
-              }}
-            >
-              {displayedSongs.map((item, idx) => {
-                const pos = typeof item.position !== 'undefined' ? item.position : idx + 1;
-                
-                // Helper to choose best quality image
-                const chooseBestImage = (saavnImgs: any[], fallback?: string) => {
-                  if (Array.isArray(saavnImgs) && saavnImgs.length > 0) {
-                    const preferred = ['500x500', '300x300', '150x150', '50x50'];
-                    for (const p of preferred) {
-                      const found = saavnImgs.find((i: any) => i.quality === p || (i.link && i.link.includes(p)) || (i.url && i.url.includes(p)));
-                      if (found) return found.url || found.link || found;
-                    }
-                    const first = saavnImgs[0];
-                    return first.url || first.link || first;
-                  }
-                  return fallback || '';
-                };
-
-                const posterUrl = item.saavnData && item.saavnData.image && item.saavnData.image.length > 0 
-                  ? chooseBestImage(item.saavnData.image, item.song.imageUrl) 
-                  : (item.song.imageUrl || '');
-
-                return (
-                  <Box 
-                    key={pos} 
-                    sx={{ 
-                      display: 'flex', 
-                      alignItems: 'flex-end', 
-                      gap: 0,
-                      cursor: item.saavnData ? 'pointer' : 'default',
-                      transition: 'transform 0.2s',
-                      flexShrink: 0,
-                      '&:hover': {
-                        transform: item.saavnData ? 'scale(1.03)' : 'none'
-                      }
-                    }} 
-                    onClick={() => handleSongClick(item)}
-                  >
-                    {/* Large rank number with Netflix-style thick black outline */}
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'flex-end',
-                        justifyContent: 'center',
-                        width: { xs: 60, sm: 90 },
-                        height: { xs: 130, sm: 160 },
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontSize: { xs: 90, sm: 150 },
-                          lineHeight: 0.85,
-                          fontWeight: 900,
-                          fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-                          letterSpacing: '-8px',
-                          WebkitTextStroke: '6px #000',
-                          color: '#e5e5e5',
-                          paintOrder: 'stroke fill',
-                          textShadow: '0 4px 8px rgba(0,0,0,0.5)',
-                          userSelect: 'none',
-                          margin: 0,
-                          padding: 0,
-                        }}
-                      >
-                        {pos}
-                      </Typography>
-                    </Box>
-
-                    {/* Album poster - square aspect */}
-                    <Avatar 
-                      src={posterUrl} 
-                      variant="rounded" 
-                      sx={{ 
-                        width: { xs: 130, sm: 160 }, 
-                        height: { xs: 130, sm: 160 }, 
-                        borderRadius: 1.5,
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)', 
-                        flexShrink: 0, 
-                        '& img': { objectFit: 'cover', width: '100%', height: '100%' } 
-                      }}
-                    >
-                      <MusicNote sx={{ fontSize: 40 }} />
-                    </Avatar>
-                  </Box>
-                );
-              })}
-            </Box>
-          </Box>
-        )}
+        
 
         <Box sx={{ mb: 4 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -844,21 +795,21 @@ const HomePage: React.FC<HomePageProps> = ({
               </IconButton>
             )}
           </Box>
-          {recommendedArtistsLoading ? (
-            <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 1, scrollbarWidth: 'none', msOverflowStyle: 'none', '&::-webkit-scrollbar': { display: 'none' } }} ref={artistsContainerRef}>
+            {recommendedArtistsLoading ? (
+            <HorizontalScroller gap={2} px={2} refProp={artistsContainerRef}>
               {[...Array(6)].map((_, idx) => (
                 <Box key={idx} sx={{ minWidth: ARTIST_AVATAR_SIZE, maxWidth: ARTIST_AVATAR_SIZE }}>
                   <Skeleton variant="circular" width={ARTIST_AVATAR_SIZE} height={ARTIST_AVATAR_SIZE} sx={{ mb: 1 }} />
                   <Skeleton variant="text" width="70%" />
                 </Box>
               ))}
-            </Box>
+            </HorizontalScroller>
           ) : recommendedArtistsError ? (
             <Typography variant="body2" color="error">
               {recommendedArtistsError}
             </Typography>
-          ) : recommendedArtists.length > 0 ? (
-            <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 1, scrollbarWidth: 'none', msOverflowStyle: 'none', '&::-webkit-scrollbar': { display: 'none' } }} ref={artistsContainerRef}>
+            ) : recommendedArtists.length > 0 ? (
+            <HorizontalScroller gap={2} px={2} refProp={artistsContainerRef}>
               {recommendedArtists.map((artist) => (
                 <Box
                   key={artist.id ?? artist.name}
@@ -871,7 +822,7 @@ const HomePage: React.FC<HomePageProps> = ({
                   <Typography variant="body2" sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.primary', textAlign: 'center' }}>{artist.name}</Typography>
                 </Box>
               ))}
-            </Box>
+            </HorizontalScroller>
           ) : (
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               No artists available right now.
@@ -880,53 +831,16 @@ const HomePage: React.FC<HomePageProps> = ({
         </Box>
       </Box>
 
-      {/* Context Menu */}
-      <Menu
+      <SongContextMenu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-      >
-        <MenuItem onClick={() => selectedSong?.saavnData && onSongSelect(selectedSong.saavnData)}>
-          <ListItemIcon>
-            <PlayArrow fontSize="small" />
-          </ListItemIcon>
-          Play
-        </MenuItem>
-        {onPlayNext && (
-          <MenuItem onClick={handlePlayNext}>
-            <ListItemIcon>
-              <PlaylistAdd fontSize="small" />
-            </ListItemIcon>
-            Play Next
-          </MenuItem>
-        )}
-        {onAddToQueue && (
-          <MenuItem onClick={handleAddToQueue}>
-            <ListItemIcon>
-              <QueueMusic fontSize="small" />
-            </ListItemIcon>
-            Add to Queue
-          </MenuItem>
-        )}
-        <MenuItem onClick={handleAddToFavourites}>
-          <ListItemIcon>
-            {selectedSong?.saavnData && favouriteSongs.includes(selectedSong.saavnData.id) ? (
-              <Favorite fontSize="small" />
-            ) : (
-              <FavoriteBorder fontSize="small" />
-            )}
-          </ListItemIcon>
-          {selectedSong?.saavnData && favouriteSongs.includes(selectedSong.saavnData.id) ? 'Remove from Favorites' : 'Add to Favorites'}
-        </MenuItem>
-      </Menu>
+        onPlayNow={() => selectedSong?.saavnData && onSongSelect(selectedSong.saavnData)}
+        onPlayNext={onPlayNext ? handlePlayNext : undefined}
+        onAddToQueue={onAddToQueue ? handleAddToQueue : undefined}
+        onAddToFavourites={handleAddToFavourites}
+        isFavourite={selectedSong?.saavnData ? favouriteSongs.includes(selectedSong.saavnData.id) : false}
+      />
     </Box>
   );
 };

@@ -10,7 +10,7 @@ try {
     // Remove immediately to avoid duplicate splash visuals
     splash.parentNode.removeChild(splash);
   }
-} catch (err) {
+} catch {
   // ignore
 }
 

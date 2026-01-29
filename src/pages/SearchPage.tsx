@@ -12,20 +12,19 @@ import {
   CircularProgress,
   Chip,
   IconButton,
-  Menu,
-  MenuItem,
-  ListItemIcon,
   Skeleton,
   Container,
 } from '@mui/material';
-import { Search, MusicNote, PlaylistPlay, Album, Person, Clear, History, ClearAll, PlayArrow, QueueMusic, PlaylistAdd, Favorite, MoreVertical, TrendingUp } from '../icons';
+import { Search, MusicNote, PlaylistPlay, Album, Person, Clear, History, ClearAll, MoreVertical, TrendingUp } from '../icons';
 import SongItem from '../components/SongItem';
+import SongContextMenu from '../components/SongContextMenu';
 import SongItemSkeleton from '../components/SongItemSkeleton';
+import HorizontalScroller from '../components/HorizontalScroller';
 // icons now imported from ../icons
 import { saavnApi } from '../services/saavnApi';
 import { getBestImage } from '../utils/normalize';
 import { Song } from '../types/api';
-import { FAVOURITE_SONGS_KEY, persistFavourites, readFavourites } from '../services/storage';
+import { FAVOURITE_SONGS_KEY, persistFavourites, readFavourites, readSessionJson, readLocalJson, writeSessionJson, writeLocalJson } from '../services/storage';
 import { decodeHtmlEntities } from '../utils/normalize';
 
 interface SearchPageProps {
@@ -38,36 +37,26 @@ interface SearchPageProps {
   onShowSnackbar?: (message: string) => void;
 }
 
-const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect, onAlbumSelect, onArtistSelect, onAddToQueue, onPlayNext, onShowSnackbar }) => {
+type AnyRecord = Record<string, unknown>;
+
+const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect, onAlbumSelect, onArtistSelect, onAddToQueue, onPlayNext }) => {
   // Use state that persists in sessionStorage
   const [searchQuery, setSearchQuery] = useState(() => {
     return sessionStorage.getItem('searchQuery') || '';
   });
-  const [songs, setSongs] = useState<any[]>(() => {
-    const saved = sessionStorage.getItem('searchSongs');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [playlists, setPlaylists] = useState<any[]>(() => {
-    const saved = sessionStorage.getItem('searchPlaylists');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [albums, setAlbums] = useState<any[]>(() => {
-    const saved = sessionStorage.getItem('searchAlbums');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [artists, setArtists] = useState<any[]>(() => {
-    const saved = sessionStorage.getItem('searchArtists');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [songs, setSongs] = useState<Song[]>(() => readSessionJson<Song[]>('searchSongs', []));
+  const [playlists, setPlaylists] = useState<AnyRecord[]>(() => readSessionJson<AnyRecord[]>('searchPlaylists', []));
+  const [albums, setAlbums] = useState<AnyRecord[]>(() => readSessionJson<AnyRecord[]>('searchAlbums', []));
+  const [artists, setArtists] = useState<AnyRecord[]>(() => readSessionJson<AnyRecord[]>('searchArtists', []));
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(() => {
     return sessionStorage.getItem('hasSearched') === 'true';
   });
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [trending, setTrending] = useState<any[]>([]);
+  const [trending, setTrending] = useState<AnyRecord[]>([]);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedSong, setSelectedSong] = useState<any>(null);
+  const [selectedSong, setSelectedSong] = useState<Song | AnyRecord | null>(null);
 
   // Save search state to sessionStorage whenever it changes
   useEffect(() => {
@@ -75,19 +64,19 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
   }, [searchQuery]);
 
   useEffect(() => {
-    sessionStorage.setItem('searchSongs', JSON.stringify(songs));
+    writeSessionJson('searchSongs', songs);
   }, [songs]);
 
   useEffect(() => {
-    sessionStorage.setItem('searchPlaylists', JSON.stringify(playlists));
+    writeSessionJson('searchPlaylists', playlists);
   }, [playlists]);
 
   useEffect(() => {
-    sessionStorage.setItem('searchAlbums', JSON.stringify(albums));
+    writeSessionJson('searchAlbums', albums);
   }, [albums]);
 
   useEffect(() => {
-    sessionStorage.setItem('searchArtists', JSON.stringify(artists));
+    writeSessionJson('searchArtists', artists);
   }, [artists]);
 
   useEffect(() => {
@@ -96,117 +85,104 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
 
   // Load recent searches from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('recentSearches');
-    if (saved) {
-      try {
-        setRecentSearches(JSON.parse(saved));
-      } catch (e) {
-        // Error loading recent searches
-      }
-    }
+    setRecentSearches(readLocalJson<string[]>('recentSearches', []));
     // Fetch trending/top searches for the Search page
     (async () => {
       try {
         const resp = await saavnApi.fetchTopSearches(12);
         setTrending(Array.isArray(resp?.items) ? resp.items : []);
-      } catch (err) {
+      } catch {
         // ignore trending fetch errors
       }
     })();
   }, []);
 
-  // Save search to recent searches
-  const saveToRecentSearches = (query: string) => {
-    const trimmedQuery = query.trim();
-    if (!trimmedQuery || trimmedQuery.length < 3) return;
+  // Helper type guards for incoming search payloads
+  const hasIdNameImage = (obj: unknown): obj is Record<string, unknown> => {
+    if (!obj || typeof obj !== 'object') return false;
+    const r = obj as Record<string, unknown>;
+    const hasId = typeof r['id'] === 'string' || typeof r['id'] === 'number';
+    const hasName = typeof r['name'] === 'string';
+    const img = r['image'];
+    const hasImage = Array.isArray(img) ? (img as unknown[]).length > 0 : Boolean(img);
+    return !!hasId && !!hasName && !!hasImage;
+  };
 
-    setRecentSearches(prev => {
-      // Remove if already exists
-      const filtered = prev.filter(s => s.toLowerCase() !== trimmedQuery.toLowerCase());
-      // Add to beginning, keep only 10
-      const updated = [trimmedQuery, ...filtered].slice(0, 10);
-      // Save to localStorage
-      localStorage.setItem('recentSearches', JSON.stringify(updated));
-      return updated;
-    });
+  const extractFirst = (val: unknown): unknown => {
+    if (Array.isArray(val)) return val[0];
+    if (val && typeof val === 'object') {
+      const r = val as Record<string, unknown>;
+      if (Array.isArray(r['data'])) return (r['data'] as unknown[])[0];
+    }
+    return undefined;
   };
 
   // Handle click on trending item based on its type
-  const handleTrendingClick = async (t: any) => {
+  const handleTrendingClick = async (t: AnyRecord | undefined) => {
     if (!t) return;
     try {
-      if (t.type === 'query') {
-        setSearchQuery(t.name);
-        await handleSearch(t.name);
+      const tType = (t as AnyRecord)['type'] as string | undefined;
+      const tName = ((t as AnyRecord)['name'] as string) || '';
+      const payload = (t as AnyRecord)['payload'] as AnyRecord | undefined;
+
+      if (tType === 'query') {
+        setSearchQuery(tName);
+        await handleSearch(tName);
         return;
       }
-      if (t.type === 'artist') {
-        // Fetch artist details then call onArtistSelect
+      if (tType === 'artist') {
         if (!onArtistSelect) return;
         try {
           setLoading(true);
-          // Try t.id then common payload fallbacks
-          const artistId = t.id || t.payload?.artistId || t.payload?.artist_id || t.payload?.id;
+          const artistId = (t as AnyRecord)['id'] as string | undefined || payload?.artistId as string | undefined || payload?.artist_id as string | undefined || payload?.id as string | undefined;
           if (!artistId) {
-            // fallback: if name present, perform a search
-            if (t.name) {
-              await handleSearch(t.name);
-            }
+            if (tName) await handleSearch(tName);
             return;
           }
           const resp = await saavnApi.getArtistById(artistId);
-          // Try to pick image
           const raw = resp?.data || resp;
-          const name = raw?.name || t.name || '';
-          const img = getBestImage(raw?.image || raw?.images || t.image || t.payload?.image || raw?.thumbnail || raw?.cover);
+          const name = (raw as AnyRecord)?.name as string | undefined || tName || '';
+          const img = getBestImage(((raw as AnyRecord)?.image as unknown) || ((raw as AnyRecord)?.images as unknown) || (t as AnyRecord)['image'] || payload?.image || (raw as AnyRecord)?.thumbnail || (raw as AnyRecord)?.cover);
           onArtistSelect(artistId, name, img);
         } finally {
           setLoading(false);
         }
         return;
       }
-      if (t.type === 'album') {
-        // Fetch album details then call onAlbumSelect
+      if (tType === 'album') {
         if (!onAlbumSelect) return;
         try {
           setLoading(true);
-          const albumId = t.id || t.payload?.albumId || t.payload?.album_id || t.payload?.id;
+          const albumId = (t as AnyRecord)['id'] as string | undefined || payload?.albumId as string | undefined || payload?.album_id as string | undefined || payload?.id as string | undefined;
           if (!albumId) {
-            if (t.name) {
-              await handleSearch(t.name);
-            }
+            if (tName) await handleSearch(tName);
             return;
           }
           const resp = await saavnApi.getAlbumById(albumId);
           const raw = resp?.data || resp;
-          const name = raw?.name || raw?.title || t.name || '';
-          const img = getBestImage(raw?.image || raw?.images || raw?.cover || t.image || t.payload?.image || raw?.thumbnail);
+          const name = (raw as AnyRecord)?.name as string | undefined || (raw as AnyRecord)?.title as string | undefined || tName || '';
+          const img = getBestImage(((raw as AnyRecord)?.image as unknown) || ((raw as AnyRecord)?.images as unknown) || (raw as AnyRecord)?.cover || (t as AnyRecord)['image'] || payload?.image || (raw as AnyRecord)?.thumbnail);
           onAlbumSelect(albumId, name, img);
         } finally {
           setLoading(false);
         }
         return;
       }
-      if (t.type === 'song') {
+      if (tType === 'song') {
         if (onSongSelect) {
-          // If payload exists, pass it; else fetch song by id
-          if (t.payload) {
-            onSongSelect(t.payload);
+          if (payload) {
+            onSongSelect(payload as Song);
           } else {
             try {
               setLoading(true);
-              const songId = t.id || t.payload?.id;
+              const songId = (t as AnyRecord)['id'] as string | undefined || payload?.id as string | undefined;
               if (!songId) {
-                if (t.name) {
-                  await handleSearch(t.name);
-                }
+                if (tName) await handleSearch(tName);
                 return;
               }
               const resp = await saavnApi.getSongById(songId);
-              const songData = resp?.data?.[0] || resp?.[0] || resp?.data || resp;
-              if (songData) {
-                onSongSelect(songData);
-              }
+              const songData = extractFirst(resp) ?? resp;
+              if (songData) onSongSelect(songData as Song);
             } finally {
               setLoading(false);
             }
@@ -214,10 +190,9 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
         }
         return;
       }
-      // Fallback: treat as a query
-      setSearchQuery(t.name || '');
-      await handleSearch(t.name || '');
-    } catch (err) {
+      setSearchQuery(tName || '');
+      await handleSearch(tName || '');
+    } catch {
       // ignore
     }
   };
@@ -241,7 +216,15 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
     }
 
     // Save to recent searches
-    saveToRecentSearches(query);
+    const trimmedQuery = query.trim();
+    if (trimmedQuery && trimmedQuery.length >= 3) {
+      setRecentSearches(prev => {
+        const filtered = prev.filter(s => s.toLowerCase() !== trimmedQuery.toLowerCase());
+        const updated = [trimmedQuery, ...filtered].slice(0, 10);
+        writeLocalJson('recentSearches', updated);
+        return updated;
+      });
+    }
     // Ensure Songs tab is visible and UI reflects a search in-progress
     setActiveTab(0);
     setHasSearched(true);
@@ -257,64 +240,39 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
       
       // Extract songs from response
       const songsData = songsResponse.data?.results || [];
-      
-      const validSongs = songsData.filter((song: any) => {
-        return song && 
-               song.id && 
-               song.name && 
-               song.image && 
-               song.image.length > 0;
-      }).slice(0, 20);
+
+      const validSongs = (songsData as unknown[]).filter(hasIdNameImage).slice(0, 20) as Song[];
       
       // Extract playlists from response
       const playlistsData = playlistsResponse.data?.results || [];
-      
-      const validPlaylists = playlistsData.filter((playlist: any) => {
-        return playlist && 
-               playlist.id && 
-               playlist.name && 
-               playlist.image && 
-               playlist.image.length > 0;
-      }).slice(0, 20);
+
+      const validPlaylists = (playlistsData as unknown[]).filter(hasIdNameImage).slice(0, 20) as AnyRecord[];
       
       // Extract albums from response
       const albumsData = albumsResponse.data?.results || [];
-      
-      const validAlbums = albumsData.filter((album: any) => {
-        return album && 
-               album.id && 
-               album.name && 
-               album.image && 
-               album.image.length > 0;
-      }).slice(0, 20);
+
+      const validAlbums = (albumsData as unknown[]).filter(hasIdNameImage).slice(0, 20) as AnyRecord[];
 
       // Extract artists from response
       const artistsData = artistsResponse.data?.results || [];
-      
-      const validArtists = artistsData.filter((artist: any) => {
-        return artist && 
-               artist.id && 
-               artist.name && 
-               artist.image && 
-               artist.image.length > 0;
-      }).slice(0, 5);
+
+      const validArtists = (artistsData as unknown[]).filter(hasIdNameImage).slice(0, 5) as AnyRecord[];
       
       setSongs(validSongs);
       setPlaylists(validPlaylists);
       setAlbums(validAlbums);
       setArtists(validArtists);
       setHasSearched(true);
-    } catch (error) {
+    } catch {
       setSongs([]);
       setPlaylists([]);
       setAlbums([]);
       setArtists([]);
-      setAlbums([]);
       setHasSearched(true);
     } finally {
       setLoading(false);
     }
-  }, [saveToRecentSearches]);
+  }, []);
 
   // Handle clicking on a recent search
   const handleRecentSearchClick = (query: string) => {
@@ -325,6 +283,14 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
+    // If user clears the input, clear results below
+    if (!value.trim()) {
+      setSongs([]);
+      setPlaylists([]);
+      setAlbums([]);
+      setArtists([]);
+      setHasSearched(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -341,20 +307,19 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
     setHasSearched(false);
   };
 
-  const getHighQualityImage = (images: any) => {
-    return getBestImage(images);
-  };
+  const getHighQualityImage = (images: unknown) => getBestImage(images);
 
-  const getArtistNames = (song: any): string => {
-    if (song.artists?.primary && Array.isArray(song.artists.primary)) {
-      return song.artists.primary.map((artist: any) => artist.name).join(', ');
+  const getArtistNames = (song: AnyRecord): string => {
+    const artists = (song as AnyRecord).artists;
+    if (artists && typeof artists === 'object' && Array.isArray(((artists as AnyRecord).primary as unknown))) {
+      return (((artists as AnyRecord).primary as AnyRecord[]) || []).map(a => (a as AnyRecord).name as string || '').filter(Boolean).join(', ');
     }
     return 'Unknown Artist';
   };
 
   
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, song: any) => {
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, song: Song | AnyRecord) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
     setSelectedSong(song);
@@ -390,21 +355,19 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
     if (selectedSong) {
       try {
         const favourites = await readFavourites(FAVOURITE_SONGS_KEY);
-        const exists = favourites.some((fav: any) => fav.id === selectedSong.id);
-        
+        const exists = (favourites as unknown[]).some((fav: Record<string, unknown>) => ((fav['id'] as string) === ((selectedSong as AnyRecord)['id'] as string)));
+
         if (!exists) {
+          const sel = selectedSong as AnyRecord;
           const newFav = {
-            id: selectedSong.id,
-            name: selectedSong.name,
-            artist: getArtistNames(selectedSong),
-            albumArt: getHighQualityImage(selectedSong.image),
+            id: sel['id'] as string,
+            name: sel['name'] as string,
+            artist: getArtistNames(sel),
+            albumArt: getHighQualityImage(sel['image']),
             addedAt: Date.now(),
           };
-          const updated = [...favourites, newFav];
-          await persistFavourites(FAVOURITE_SONGS_KEY, updated);
-          if (onShowSnackbar) {
-            onShowSnackbar('Added to favourites ❤️');
-          }
+          const updated = [...(favourites as unknown[]), newFav];
+          await persistFavourites(FAVOURITE_SONGS_KEY, updated as unknown[]);
         }
       } catch (error) {
         console.warn('Unable to update favourite songs', error);
@@ -568,7 +531,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
       {!loading && hasSearched && (songs.length > 0 || playlists.length > 0 || albums.length > 0 || artists.length > 0) && (
         <Container maxWidth="sm" disableGutters>
           {/* Compact horizontally scrollable tabs chips */}
-          <Box sx={{ mb: 2, overflowX: 'auto' }}>
+          <HorizontalScroller px={0} gap={2}>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'nowrap', alignItems: 'center' }}>
               <Chip
                 size="small"
@@ -639,7 +602,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
                 }}
               />
             </Box>
-          </Box>
+          </HorizontalScroller>
         </Container>
       )}
 
@@ -999,45 +962,23 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSongSelect, onPlaylistSelect,
         </Box>
       )}
 
-      {/* Context Menu */}
-      <Menu
+      <SongContextMenu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-      >
-        <MenuItem onClick={handlePlayNow}>
-          <ListItemIcon>
-            <PlayArrow fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">Play Now</Typography>
-        </MenuItem>
-        <MenuItem onClick={handlePlayNext}>
-          <ListItemIcon>
-            <QueueMusic fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">Play Next</Typography>
-        </MenuItem>
-        <MenuItem onClick={handleAddToQueue}>
-          <ListItemIcon>
-            <PlaylistAdd fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">Add to Queue</Typography>
-        </MenuItem>
-        <MenuItem onClick={handleAddToFavourites}>
-          <ListItemIcon>
-            <Favorite fontSize="small" />
-          </ListItemIcon>
-          <Typography variant="body2">Add to Favourites</Typography>
-        </MenuItem>
-      </Menu>
+        onPlayNow={handlePlayNow}
+        onPlayNext={handlePlayNext}
+        onAddToQueue={handleAddToQueue}
+        onAddToFavourites={handleAddToFavourites}
+        onOpenAlbum={onAlbumSelect ? () => {
+          if (!selectedSong) return;
+          const sel = selectedSong as AnyRecord;
+          const albumId = sel?.albumId as string | undefined || (sel?.album as AnyRecord)?.id as string | undefined;
+          const albumName = sel?.albumName as string | undefined || (sel?.album as AnyRecord)?.name as string | undefined;
+          const albumImage = sel?.albumImage as string | undefined || (sel?.album as AnyRecord)?.image as string | undefined;
+          if (albumId && onAlbumSelect) onAlbumSelect(albumId, albumName || '', albumImage || '');
+        } : undefined}
+      />
     </Box>
   );
 };

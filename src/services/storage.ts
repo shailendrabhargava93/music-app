@@ -31,7 +31,7 @@ interface WaveDbSchema extends DBSchema {
   };
   meta: {
     key: string;
-    value: Record<string, any>;
+    value: Record<string, unknown>;
   };
 }
 
@@ -91,7 +91,7 @@ export async function deleteDownload(id: string) {
   await db.delete('downloads', id);
 }
 
-export async function setMeta(key: string, value: any) {
+export async function setMeta(key: string, value: unknown) {
   const db = await getDb();
   const tx = db.transaction('meta', 'readwrite');
   const store = tx.objectStore('meta');
@@ -120,11 +120,49 @@ export async function getMeta(key: string) {
 
 export async function readFavourites(key: FavouriteKey) {
   const stored = await getMeta(key);
-  return Array.isArray(stored) ? stored : [];
+  return Array.isArray(stored) ? (stored as unknown[]) : [];
 }
 
-export async function persistFavourites(key: FavouriteKey, items: any[]) {
+export async function persistFavourites(key: FavouriteKey, items: unknown[]) {
   await setMeta(key, items);
+}
+
+export function readLocalJson<T>(key: string, fallback: T): T {
+  const raw = localStorage.getItem(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch (err) {
+    console.warn(`Failed to parse localStorage key ${key}`, err);
+    return fallback;
+  }
+}
+
+export function readSessionJson<T>(key: string, fallback: T): T {
+  const raw = sessionStorage.getItem(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch (err) {
+    console.warn(`Failed to parse sessionStorage key ${key}`, err);
+    return fallback;
+  }
+}
+
+export function writeLocalJson(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    console.warn(`Failed to write localStorage key ${key}`, err);
+  }
+}
+
+export function writeSessionJson(key: string, value: unknown) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    console.warn(`Failed to write sessionStorage key ${key}`, err);
+  }
 }
 
 export async function migrateLocalStorage() {
@@ -133,8 +171,20 @@ export async function migrateLocalStorage() {
   const migratedFlagDb = await getMeta('indexedDbMigrated');
   if (migratedFlagLocal === 'true' || migratedFlagDb === true) return;
   // migrate favourites
+  const parseLocal = <T>(key: string, fallback: T): T => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    try {
+      return JSON.parse(raw) as T;
+    } catch (err) {
+      console.warn(`Failed to parse localStorage key ${key}`, err);
+      return fallback;
+    }
+  };
+  // local parsing helper used only for migration; other modules should use
+  // exported readLocalJson/readSessionJson above.
   try {
-    const favourites = JSON.parse(localStorage.getItem('favouriteSongs') || '[]');
+    const favourites = parseLocal<unknown[]>('favouriteSongs', []);
     if (Array.isArray(favourites)) {
       for (const fav of favourites) {
         if (fav?.id) {
@@ -148,14 +198,16 @@ export async function migrateLocalStorage() {
   }
 
   try {
-    const recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
+    const recentlyPlayed = parseLocal<unknown[]>('recentlyPlayed', []);
     if (Array.isArray(recentlyPlayed)) {
       await setMeta('recentlyPlayed', recentlyPlayed);
     }
-  } catch (error) {}
+  } catch {
+    // ignore
+  }
 
   try {
-    const favouriteAlbums = JSON.parse(localStorage.getItem('favouriteAlbums') || '[]');
+    const favouriteAlbums = parseLocal<unknown[]>('favouriteAlbums', []);
     if (Array.isArray(favouriteAlbums)) {
       await persistFavourites(FAVOURITE_ALBUMS_KEY, favouriteAlbums);
     }
@@ -164,7 +216,7 @@ export async function migrateLocalStorage() {
   }
 
   try {
-    const favouritePlaylists = JSON.parse(localStorage.getItem('favouritePlaylists') || '[]');
+    const favouritePlaylists = parseLocal<unknown[]>('favouritePlaylists', []);
     if (Array.isArray(favouritePlaylists)) {
       await persistFavourites(FAVOURITE_PLAYLISTS_KEY, favouritePlaylists);
     }
